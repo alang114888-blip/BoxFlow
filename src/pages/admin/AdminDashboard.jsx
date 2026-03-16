@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   const [showAddTrainer, setShowAddTrainer] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
-  const [trainerType, setTrainerType] = useState('boxing')
+  const [trainerType, setTrainerType] = useState('fitness')
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState(null)
   const [inviteSuccess, setInviteSuccess] = useState(false)
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
         supabase
           .from('workout_plans')
           .select('id', { count: 'exact', head: true })
-          .eq('status', 'active'),
+          .eq('is_active', true),
       ])
 
       setTotalTrainers(trainersRes.count ?? 0)
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
           role,
           trainer_profiles (
             id,
-            type,
+            trainer_type,
             specializations
           )
         `)
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
       setInviteSuccess(true)
       setInviteEmail('')
       setInviteName('')
-      setTrainerType('boxing')
+      setTrainerType('fitness')
       // Refresh trainers list after a short delay
       setTimeout(() => {
         fetchStats()
@@ -346,7 +346,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-5 py-3 text-sm">
                         <span className="inline-flex items-center rounded-full bg-primary-900/30 px-2.5 py-0.5 text-xs font-medium text-primary-300 capitalize">
-                          {trainer.trainer_profiles?.[0]?.type || 'N/A'}
+                          {trainer.trainer_profiles?.[0]?.trainer_type || 'N/A'}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-sm text-dark-200">
@@ -371,7 +371,7 @@ export default function AdminDashboard() {
                           >
                             <option value="trainer">Trainer</option>
                             <option value="client">Client</option>
-                            <option value="admin">Admin</option>
+                            <option value="super_admin">Admin</option>
                           </select>
                         </div>
                       </td>
@@ -453,11 +453,9 @@ export default function AdminDashboard() {
                   disabled={inviting}
                   className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none transition disabled:opacity-50"
                 >
-                  <option value="boxing">Boxing</option>
-                  <option value="fitness">Fitness</option>
-                  <option value="strength">Strength</option>
-                  <option value="conditioning">Conditioning</option>
-                  <option value="hybrid">Hybrid</option>
+                  <option value="fitness">Personal Trainer</option>
+                  <option value="nutrition">Nutritionist</option>
+                  <option value="both">Both (Trainer + Nutritionist)</option>
                 </select>
               </div>
 

@@ -15,11 +15,11 @@ export default function ProtectedRoute({ allowedRoles }) {
     return <LoadingSpinner />
   }
 
-  if (!user) {
+  if (!user || !profile) {
     return <Navigate to="/login" replace />
   }
 
-  if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
+  if (allowedRoles && !allowedRoles.includes(profile.role)) {
     const dashboard = ROLE_DASHBOARDS[profile.role] || '/'
     return <Navigate to={dashboard} replace />
   }
