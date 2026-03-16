@@ -65,6 +65,11 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
+  async function signInWithPassword(email, password) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+  }
+
   async function signOut() {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
@@ -77,6 +82,7 @@ export function AuthProvider({ children }) {
     profile,
     loading,
     signIn,
+    signInWithPassword,
     signOut,
   }
 
