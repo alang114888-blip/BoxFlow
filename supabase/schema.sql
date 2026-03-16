@@ -270,16 +270,22 @@ ALTER TABLE forms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE programs_marketplace ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
+-- HELPER FUNCTION (avoids infinite recursion on profiles RLS)
+-- ============================================
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS user_role AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid()
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- ============================================
 -- ALL RLS POLICIES
 -- ============================================
 
--- profiles
+-- profiles (use get_my_role() to avoid infinite recursion)
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Super admins can view all profiles" ON profiles
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'super_admin')
-  );
+  FOR SELECT USING (public.get_my_role() = 'super_admin');
 CREATE POLICY "Trainers can view their clients profiles" ON profiles
   FOR SELECT USING (
     EXISTS (
@@ -290,9 +296,7 @@ CREATE POLICY "Trainers can view their clients profiles" ON profiles
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Super admins can update all profiles" ON profiles
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'super_admin')
-  );
+  FOR UPDATE USING (public.get_my_role() = 'super_admin');
 CREATE POLICY "Allow insert for authenticated users" ON profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
@@ -301,7 +305,7 @@ CREATE POLICY "Trainers can manage own profile" ON trainer_profiles
   FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Super admins can manage all trainer profiles" ON trainer_profiles
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 CREATE POLICY "Clients can view their trainer profile" ON trainer_profiles
   FOR SELECT USING (
@@ -318,7 +322,7 @@ CREATE POLICY "Clients can view their trainer relationship" ON trainer_clients
   FOR SELECT USING (auth.uid() = client_id);
 CREATE POLICY "Super admins can manage all relationships" ON trainer_clients
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- exercises
@@ -333,7 +337,7 @@ CREATE POLICY "Clients can view their trainer exercises" ON exercises
   );
 CREATE POLICY "Super admins can view all exercises" ON exercises
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- client_prs
@@ -348,7 +352,7 @@ CREATE POLICY "Trainers can view their client PRs" ON client_prs
   );
 CREATE POLICY "Super admins can view all PRs" ON client_prs
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- workout_plans
@@ -358,7 +362,7 @@ CREATE POLICY "Clients can view own workout plans" ON workout_plans
   FOR SELECT USING (auth.uid() = client_id);
 CREATE POLICY "Super admins can view all workout plans" ON workout_plans
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- workout_days
@@ -376,7 +380,7 @@ CREATE POLICY "Clients can view own workout days" ON workout_days
   );
 CREATE POLICY "Super admins can view all workout days" ON workout_days
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- workout_exercises
@@ -398,7 +402,7 @@ CREATE POLICY "Clients can view own workout exercises" ON workout_exercises
   );
 CREATE POLICY "Super admins can view all workout exercises" ON workout_exercises
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- nutrition_plans
@@ -408,7 +412,7 @@ CREATE POLICY "Clients can view own nutrition plans" ON nutrition_plans
   FOR SELECT USING (auth.uid() = client_id);
 CREATE POLICY "Super admins can view all nutrition plans" ON nutrition_plans
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- nutrition_days
@@ -426,7 +430,7 @@ CREATE POLICY "Clients can view own nutrition days" ON nutrition_days
   );
 CREATE POLICY "Super admins can view all nutrition days" ON nutrition_days
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- meals
@@ -448,7 +452,7 @@ CREATE POLICY "Clients can view own meals" ON meals
   );
 CREATE POLICY "Super admins can view all meals" ON meals
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- meal_items
@@ -472,7 +476,7 @@ CREATE POLICY "Clients can view own meal items" ON meal_items
   );
 CREATE POLICY "Super admins can view all meal items" ON meal_items
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- workout_logs
@@ -487,7 +491,7 @@ CREATE POLICY "Trainers can view their client logs" ON workout_logs
   );
 CREATE POLICY "Super admins can view all logs" ON workout_logs
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+    public.get_my_role() = 'super_admin'
   );
 
 -- workout_results
@@ -516,7 +520,7 @@ CREATE POLICY "Users can manage own reactions" ON reactions FOR ALL USING (auth.
 -- subscriptions
 CREATE POLICY "Users can view own subscriptions" ON subscriptions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Super admins can manage subscriptions" ON subscriptions FOR ALL USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+  public.get_my_role() = 'super_admin'
 );
 
 -- classes
@@ -532,7 +536,7 @@ CREATE POLICY "Trainers can view class bookings" ON class_bookings FOR SELECT US
 -- leads
 CREATE POLICY "Trainers can manage own leads" ON leads FOR ALL USING (auth.uid() = trainer_id);
 CREATE POLICY "Super admins can manage all leads" ON leads FOR ALL USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+  public.get_my_role() = 'super_admin'
 );
 
 -- forms
@@ -555,11 +559,11 @@ BEGIN
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'client')
+    COALESCE((NEW.raw_user_meta_data->>'role')::public.user_role, 'client'::public.user_role)
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
