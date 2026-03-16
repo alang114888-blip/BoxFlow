@@ -27,7 +27,7 @@ export default function TrainerDashboard() {
       setLoading(true)
       setError(null)
 
-      const [clientsRes, workoutPlansRes, nutritionPlansRes, exercisesRes, logsRes] =
+      const [clientsRes, workoutPlansRes, nutritionPlansRes, exercisesRes] =
         await Promise.all([
           supabase
             .from('trainer_clients')
@@ -48,32 +48,6 @@ export default function TrainerDashboard() {
             .from('exercises')
             .select('id', { count: 'exact', head: true })
             .eq('trainer_id', profile.id),
-          supabase
-            .from('workout_logs')
-            .select(`
-              id,
-              completed_at,
-              notes,
-              score,
-              client_id,
-              profiles!workout_logs_client_id_fkey ( full_name ),
-              workout_days (
-                name,
-                workout_plans ( name )
-              )
-            `)
-            .in(
-              'client_id',
-              (
-                await supabase
-                  .from('trainer_clients')
-                  .select('client_id')
-                  .eq('trainer_id', profile.id)
-                  .eq('invite_accepted', true)
-              ).data?.map((c) => c.client_id) || []
-            )
-            .order('completed_at', { ascending: false })
-            .limit(10),
         ])
 
       if (clientsRes.error) throw clientsRes.error
@@ -88,7 +62,37 @@ export default function TrainerDashboard() {
         exercises: exercisesRes.count || 0,
       })
 
-      setRecentLogs(logsRes.data || [])
+      // Fetch recent logs separately — need client IDs first
+      const { data: clientRows } = await supabase
+        .from('trainer_clients')
+        .select('client_id')
+        .eq('trainer_id', profile.id)
+        .eq('invite_accepted', true)
+
+      const clientIds = (clientRows || []).map((c) => c.client_id)
+
+      if (clientIds.length > 0) {
+        const { data: logs } = await supabase
+          .from('workout_logs')
+          .select(`
+            id,
+            completed_at,
+            notes,
+            score,
+            client_id,
+            profiles!workout_logs_client_id_fkey ( full_name ),
+            workout_days (
+              name,
+              workout_plans ( name )
+            )
+          `)
+          .in('client_id', clientIds)
+          .order('completed_at', { ascending: false })
+          .limit(10)
+        setRecentLogs(logs || [])
+      } else {
+        setRecentLogs([])
+      }
     } catch (err) {
       console.error('Dashboard fetch error:', err)
       setError(err.message)
@@ -99,7 +103,7 @@ export default function TrainerDashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-dark-900">
+      <div className="flex items-center justify-center py-20">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-dark-600 border-t-primary-500" />
       </div>
     )
@@ -107,7 +111,7 @@ export default function TrainerDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-dark-900 p-8">
+      <div className="p-8">
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
           Failed to load dashboard: {error}
         </div>
@@ -140,7 +144,7 @@ export default function TrainerDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-dark-900 p-6 lg:p-8">
+    <div className="p-6 lg:p-8">
       {/* Welcome */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-dark-100">

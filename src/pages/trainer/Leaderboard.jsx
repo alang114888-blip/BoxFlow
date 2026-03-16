@@ -156,14 +156,14 @@ export default function Leaderboard() {
 
   if (loading && leaderboard.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-dark-900">
+      <div className="flex items-center justify-center py-20">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-dark-600 border-t-primary-500" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-dark-900 p-6 lg:p-8">
+    <div className="p-6 lg:p-8">
       <div className="mb-6 flex items-center gap-3">
         <TrophyIcon className="h-7 w-7 text-yellow-400" />
         <h1 className="text-2xl font-bold text-dark-100">Leaderboard</h1>

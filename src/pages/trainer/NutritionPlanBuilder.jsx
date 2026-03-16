@@ -437,7 +437,7 @@ export default function NutritionPlanBuilder() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-dark-900">
+      <div className="flex items-center justify-center py-20">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-dark-600 border-t-primary-500" />
       </div>
     )
@@ -446,7 +446,7 @@ export default function NutritionPlanBuilder() {
   // LIST MODE
   if (mode === 'list') {
     return (
-      <div className="min-h-screen bg-dark-900 p-6 lg:p-8">
+      <div className="p-6 lg:p-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold text-dark-100">Nutrition Plans</h1>
           <button
@@ -514,7 +514,7 @@ export default function NutritionPlanBuilder() {
 
   // EDIT MODE
   return (
-    <div className="min-h-screen bg-dark-900 p-6 lg:p-8">
+    <div className="p-6 lg:p-8">
       <div className="mb-6 flex items-center gap-4">
         <button
           onClick={() => {
