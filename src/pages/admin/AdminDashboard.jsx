@@ -7,6 +7,7 @@ import {
   XMarkIcon,
   ArrowPathIcon,
   EyeIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -37,6 +38,10 @@ export default function AdminDashboard() {
   const [selectedTrainer, setSelectedTrainer] = useState(null)
   const [trainerClients, setTrainerClients] = useState([])
   const [loadingClients, setLoadingClients] = useState(false)
+
+  // Delete trainer
+  const [trainerToDelete, setTrainerToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchStats()
@@ -209,6 +214,25 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleDeleteTrainer() {
+    if (!trainerToDelete) return
+    setDeleting(true)
+    try {
+      const { error: deleteError } = await supabase
+        .rpc('delete_user', { user_id: trainerToDelete.id })
+
+      if (deleteError) throw deleteError
+
+      setTrainerToDelete(null)
+      fetchStats()
+      fetchTrainers()
+    } catch (err) {
+      setError(err.message || 'Failed to delete trainer')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const statCards = [
     {
       label: 'Total Trainers',
@@ -373,6 +397,14 @@ export default function AdminDashboard() {
                             <option value="client">Client</option>
                             <option value="super_admin">Admin</option>
                           </select>
+                          <button
+                            onClick={() => setTrainerToDelete(trainer)}
+                            className="inline-flex items-center gap-1 rounded-md bg-red-900/30 px-2.5 py-1.5 text-xs text-red-400 hover:bg-red-900/50 transition"
+                            title="Delete trainer"
+                          >
+                            <TrashIcon className="h-3.5 w-3.5" />
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -566,6 +598,50 @@ export default function AdminDashboard() {
                 className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {trainerToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm bg-dark-800 border border-dark-700 rounded-xl shadow-xl p-6">
+            <h3 className="text-lg font-semibold text-dark-100 mb-2">
+              Delete Trainer
+            </h3>
+            <p className="text-sm text-dark-300 mb-1">
+              Are you sure you want to delete{' '}
+              <span className="font-medium text-dark-100">
+                {trainerToDelete.full_name || trainerToDelete.email}
+              </span>
+              ?
+            </p>
+            <p className="text-xs text-red-400 mb-5">
+              This will remove their profile, client relationships, and all associated data. This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setTrainerToDelete(null)}
+                disabled={deleting}
+                className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteTrainer}
+                disabled={deleting}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {deleting ? (
+                  <>
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
               </button>
             </div>
           </div>

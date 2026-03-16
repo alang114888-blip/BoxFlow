@@ -590,3 +590,12 @@ BEGIN
   RETURN ROUND(pr_weight * p_percentage / 100, 1);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Delete user from both profiles and auth.users (admin only)
+CREATE OR REPLACE FUNCTION public.delete_user(user_id UUID)
+RETURNS void AS $$
+BEGIN
+  DELETE FROM public.profiles WHERE id = user_id;
+  DELETE FROM auth.users WHERE id = user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
