@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 import PasswordInput, { validatePassword, validatePasswordMatch } from '../components/PasswordInput'
 
 export default function ResetPassword() {
   const navigate = useNavigate()
+  const { changePassword } = useAuth()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
   const [ready, setReady] = useState(false)
+  const [expired, setExpired] = useState(false)
 
   useEffect(() => {
     // Supabase processes the recovery token from the URL hash automatically
@@ -26,7 +29,15 @@ export default function ResetPassword() {
       if (session) setReady(true)
     })
 
-    return () => subscription.unsubscribe()
+    // Timeout: if ready is still false after 5 seconds, show expired message
+    const timeout = setTimeout(() => {
+      setExpired((prev) => { return true })
+    }, 5000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   async function handleSubmit(e) {
@@ -39,17 +50,7 @@ export default function ResetPassword() {
 
     setSaving(true)
     try {
-      const { error: updateErr } = await supabase.auth.updateUser({ password })
-      if (updateErr) throw updateErr
-
-      // Save to password history if user is available
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        await supabase.rpc('save_password_history', {
-          target_user_id: user.id,
-          new_password: password,
-        }).catch(() => {}) // non-critical
-      }
+      await changePassword(password)
 
       setSuccess(true)
       // Sign out and redirect to login after 2 seconds
@@ -89,10 +90,21 @@ export default function ResetPassword() {
           style={{ background: 'rgba(30, 41, 59, 0.7)', backdropFilter: 'blur(12px)', border: '1px solid rgba(124, 59, 237, 0.2)' }}
         >
           {!ready && !success ? (
-            <div className="text-center py-8">
-              <span className="material-symbols-outlined text-primary animate-spin text-4xl mb-4">progress_activity</span>
-              <p className="text-slate-400 text-sm">Verifying reset link...</p>
-            </div>
+            expired ? (
+              <div className="text-center py-8">
+                <span className="material-symbols-outlined text-red-400 text-5xl mb-3">error</span>
+                <h3 className="text-xl font-bold text-white mb-2">Link Expired</h3>
+                <p className="text-slate-400 text-sm mb-4">Invalid or expired reset link. Please request a new one.</p>
+                <Link to="/login" className="text-primary font-semibold hover:underline decoration-primary/30 underline-offset-4">
+                  Back to Login
+                </Link>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <span className="material-symbols-outlined text-primary animate-spin text-4xl mb-4">progress_activity</span>
+                <p className="text-slate-400 text-sm">Verifying reset link...</p>
+              </div>
+            )
           ) : success ? (
             <div className="text-center py-8">
               <span className="material-symbols-outlined text-emerald-400 text-5xl mb-3">check_circle</span>

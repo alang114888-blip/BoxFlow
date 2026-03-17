@@ -99,7 +99,7 @@ export default function WorkoutPlanBuilder() {
       setLoading(true)
 
       // Fetch clients and exercises in parallel
-      const [clientsRes, exercisesRes] = await Promise.all([
+      const [clientsRes, trainerExRes, sysExRes] = await Promise.all([
         supabase
           .from('trainer_clients')
           .select('client_id, profiles!trainer_clients_client_id_fkey ( id, full_name )')
@@ -110,6 +110,12 @@ export default function WorkoutPlanBuilder() {
           .select('*')
           .eq('trainer_id', profile.id)
           .order('name'),
+        supabase
+          .from('exercises')
+          .select('*')
+          .is('trainer_id', null)
+          .eq('is_default', true)
+          .order('name'),
       ])
 
       setClients(
@@ -118,7 +124,7 @@ export default function WorkoutPlanBuilder() {
           full_name: tc.profiles?.full_name || 'Unknown',
         }))
       )
-      setExercises(exercisesRes.data || [])
+      setExercises([...(sysExRes.data || []), ...(trainerExRes.data || [])])
 
       if (existingPlanId) {
         // Fetch existing plan data

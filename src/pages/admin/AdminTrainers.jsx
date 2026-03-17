@@ -152,32 +152,18 @@ export default function AdminTrainers() {
     try {
       const siteUrl = SITE_URL
 
-      const { error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
-        inviteEmail,
-        {
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: inviteEmail,
+        options: {
           data: {
             role: 'trainer',
             full_name: inviteName,
             trainer_type: trainerType,
           },
-          redirectTo: siteUrl + '/onboarding',
-        }
-      )
-
-      if (inviteErr) {
-        const { error: otpError } = await supabase.auth.signInWithOtp({
-          email: inviteEmail,
-          options: {
-            data: {
-              role: 'trainer',
-              full_name: inviteName,
-              trainer_type: trainerType,
-            },
-            emailRedirectTo: siteUrl + '/onboarding',
-          },
-        })
-        if (otpError) throw otpError
-      }
+          emailRedirectTo: siteUrl + '/onboarding',
+        },
+      })
+      if (otpError) throw otpError
 
       setInviteSuccess(true)
       setInviteEmail('')

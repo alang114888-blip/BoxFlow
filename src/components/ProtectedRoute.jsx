@@ -19,6 +19,10 @@ export default function ProtectedRoute({ allowedRoles }) {
     return <Navigate to="/login" replace />
   }
 
+  if (!profile.is_onboarded && profile.role !== 'super_admin') {
+    return <Navigate to="/onboarding" replace />
+  }
+
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
     const dashboard = ROLE_DASHBOARDS[profile.role] || '/'
     return <Navigate to={dashboard} replace />

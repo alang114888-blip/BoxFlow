@@ -71,8 +71,6 @@ export default function Onboarding() {
       } else {
         navigate('/client', { replace: true })
       }
-      // Force reload to refresh profile
-      window.location.reload()
     } catch (err) {
       setError(err.message || 'Something went wrong')
     } finally {

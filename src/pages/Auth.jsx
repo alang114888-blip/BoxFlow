@@ -21,6 +21,9 @@ export default function Auth() {
   }
 
   if (user && profile) {
+    if (!profile.is_onboarded && profile.role !== 'super_admin') {
+      return <Navigate to="/onboarding" replace />
+    }
     if (profile.role === 'super_admin') return <Navigate to="/admin" replace />
     if (profile.role === 'trainer') return <Navigate to="/trainer" replace />
     return <Navigate to="/client" replace />

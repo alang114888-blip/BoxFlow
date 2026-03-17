@@ -197,32 +197,18 @@ export default function AdminDashboard() {
     try {
       const siteUrl = SITE_URL
 
-      const { error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
-        inviteEmail,
-        {
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: inviteEmail,
+        options: {
           data: {
             role: 'trainer',
             full_name: inviteName,
             trainer_type: trainerType,
           },
-          redirectTo: siteUrl + '/onboarding',
-        }
-      )
-
-      if (inviteErr) {
-        const { error: otpError } = await supabase.auth.signInWithOtp({
-          email: inviteEmail,
-          options: {
-            data: {
-              role: 'trainer',
-              full_name: inviteName,
-              trainer_type: trainerType,
-            },
-            emailRedirectTo: siteUrl + '/onboarding',
-          },
-        })
-        if (otpError) throw otpError
-      }
+          emailRedirectTo: siteUrl + '/onboarding',
+        },
+      })
+      if (otpError) throw otpError
 
       setInviteSuccess(true)
       setInviteEmail('')
@@ -357,24 +343,18 @@ export default function AdminDashboard() {
       value: totalTrainers,
       icon: 'groups',
       gradient: 'from-primary to-purple-600',
-      badge: '+12%',
-      badgeColor: 'text-emerald-400',
     },
     {
       label: 'Active Members',
       value: totalClients,
       icon: 'person',
       gradient: 'from-emerald-500 to-teal-600',
-      badge: '+8%',
-      badgeColor: 'text-emerald-400',
     },
     {
       label: 'Active Workout Plans',
       value: activeWorkoutPlans,
       icon: 'exercise',
       gradient: 'from-amber-500 to-orange-600',
-      badge: '+5%',
-      badgeColor: 'text-emerald-400',
     },
   ]
 
@@ -419,9 +399,6 @@ export default function AdminDashboard() {
               <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
                 <span className="material-symbols-outlined text-white text-xl">{stat.icon}</span>
               </div>
-              <span className={`text-xs font-medium ${stat.badgeColor} bg-emerald-500/10 px-2 py-1 rounded-full`}>
-                {stat.badge}
-              </span>
             </div>
             <p className="text-3xl font-bold text-white mb-1">{stat.value}</p>
             <p className="text-sm text-slate-400">{stat.label}</p>

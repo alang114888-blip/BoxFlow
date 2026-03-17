@@ -39,13 +39,13 @@ export default function PRBoard() {
       const [trainerExRes, sysExRes, clientRes] = await Promise.all([
         supabase
           .from('exercises')
-          .select('id, name, video_url, is_pr_eligible')
+          .select('id, name, video_url, is_pr_eligible, trainer_id')
           .eq('trainer_id', profile.id)
           .eq('is_pr_eligible', true)
           .order('name'),
         supabase
           .from('exercises')
-          .select('id, name, video_url, is_pr_eligible')
+          .select('id, name, video_url, is_pr_eligible, trainer_id')
           .is('trainer_id', null)
           .eq('is_default', true)
           .order('name'),
@@ -174,6 +174,8 @@ export default function PRBoard() {
   }
 
   async function handleDeleteExercise(id) {
+    const ex = exercises.find(e => e.id === id)
+    if (!ex?.trainer_id) { alert('Cannot delete system default exercises'); return }
     if (!confirm('Delete this PR exercise?')) return
     await supabase.from('exercises').delete().eq('id', id)
     fetchData()
