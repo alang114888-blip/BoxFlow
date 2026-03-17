@@ -330,9 +330,17 @@ export default function WorkoutPlanBuilder() {
       setSaving(true)
       setSaveError(null)
 
-      if (!planName.trim()) {
-        setSaveError('Plan name is required.')
+      if (!selectedClient) {
+        setSaveError('Please select a client.')
         return
+      }
+
+      // Auto-generate plan name if empty
+      if (!planName.trim()) {
+        const client = clients.find(c => c.id === selectedClient)
+        const weekStart = new Date()
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
+        setPlanName(`${client?.full_name || 'Client'} - Week of ${weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`)
       }
 
       let savedPlanId = planId
@@ -565,37 +573,38 @@ export default function WorkoutPlanBuilder() {
         </div>
       )}
 
-      {/* Plan Info */}
-      <div className="mb-6 rounded-xl border border-dark-700 bg-dark-800 p-4 space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-sm text-dark-300">Plan Name *</label>
-            <input
-              type="text"
-              value={planName}
-              onChange={(e) => setPlanName(e.target.value)}
-              className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 placeholder-dark-500 focus:border-primary-500 focus:outline-none"
-              placeholder="e.g. Strength Block A"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm text-dark-300">Client</label>
-            <select
-              value={selectedClient}
-              onChange={(e) => handleClientChange(e.target.value)}
-              className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-            >
-              <option value="">Unassigned</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+      {/* Plan Info — no plan name field, auto-generated */}
+      <div className="mb-6 rounded-xl border border-dark-700 bg-dark-800 p-4 space-y-3">
         <div>
-          <label className="mb-1 block text-sm text-dark-300">Description</label>
+          <label className="mb-1 block text-sm text-dark-300">Client *</label>
+          <select
+            value={selectedClient}
+            onChange={(e) => {
+              handleClientChange(e.target.value)
+              // Auto-generate plan name
+              const client = clients.find(c => c.id === e.target.value)
+              if (client) {
+                const weekStart = new Date()
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
+                setPlanName(`${client.full_name} - Week of ${weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`)
+              }
+            }}
+            className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
+          >
+            <option value="">Select client...</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.full_name}</option>
+            ))}
+          </select>
+        </div>
+        {planName && (
+          <p className="text-xs text-dark-400">
+            <span className="material-symbols-outlined text-[14px] align-middle mr-1">label</span>
+            {planName}
+          </p>
+        )}
+        <div>
+          <label className="mb-1 block text-sm text-dark-300">Description (optional)</label>
           <textarea
             value={planDescription}
             onChange={(e) => setPlanDescription(e.target.value)}
@@ -726,139 +735,125 @@ export default function WorkoutPlanBuilder() {
                         )}
                       </div>
 
-                      {/* Exercises Table */}
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-dark-600 text-left text-xs text-dark-400">
-                              <th className="pb-2 pr-2">Exercise</th>
-                              <th className="pb-2 pr-2 w-14">Sets</th>
-                              <th className="pb-2 pr-2 w-20">Reps</th>
-                              <th className="pb-2 pr-2 w-16">% PR</th>
-                              <th className="pb-2 pr-2 w-20">= Weight</th>
-                              <th className="pb-2 pr-2">Notes / Description</th>
-                              <th className="pb-2 w-8"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {items.map((we) => {
-                              const isOther = we.exercise_id === '__other__'
-                              const selectedExercise = !isOther ? exercises.find((ex) => ex.id === we.exercise_id) : null
-                              const isPrEligible = selectedExercise?.is_pr_eligible
-                              const calculatedWeight = isPrEligible
-                                ? getCalculatedWeight(we.exercise_id, we.percentage_of_pr)
-                                : null
-                              const prValue = selectedClient && clientPrs[selectedClient]?.[we.exercise_id]
+                      {/* Exercise Cards (mobile-friendly, no horizontal scroll) */}
+                      <div className="space-y-2">
+                        {items.map((we) => {
+                          const isOther = we.exercise_id === '__other__'
+                          const selectedExercise = !isOther ? exercises.find((ex) => ex.id === we.exercise_id) : null
+                          const isPrEligible = selectedExercise?.is_pr_eligible
+                          const calculatedWeight = isPrEligible ? getCalculatedWeight(we.exercise_id, we.percentage_of_pr) : null
+                          const prValue = selectedClient && clientPrs[selectedClient]?.[we.exercise_id]
 
-                              return (
-                                <tr key={we._tempId} className="border-b border-dark-700/50">
-                                  {/* Exercise selector */}
-                                  <td className="py-2 pr-2">
-                                    <select
-                                      value={we.exercise_id}
-                                      onChange={(e) => {
-                                        updateExercise(day._tempId, we._tempId, 'exercise_id', e.target.value)
-                                        if (e.target.value !== '__other__') {
-                                          updateExercise(day._tempId, we._tempId, 'custom_name', '')
-                                        }
-                                      }}
-                                      className="w-full min-w-[130px] rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                    >
-                                      <option value="">Select...</option>
-                                      {exercises.filter(ex => ex.is_pr_eligible).length > 0 && (
-                                        <optgroup label="PR Exercises">
-                                          {exercises.filter(ex => ex.is_pr_eligible).map((ex) => (
-                                            <option key={ex.id} value={ex.id}>{ex.name}</option>
-                                          ))}
-                                        </optgroup>
-                                      )}
-                                      {exercises.filter(ex => !ex.is_pr_eligible).length > 0 && (
-                                        <optgroup label="Other Exercises">
-                                          {exercises.filter(ex => !ex.is_pr_eligible).map((ex) => (
-                                            <option key={ex.id} value={ex.id}>{ex.name}</option>
-                                          ))}
-                                        </optgroup>
-                                      )}
-                                      <option value="__other__">Other (free text)</option>
-                                    </select>
-                                    {isOther && (
-                                      <input
-                                        type="text"
-                                        value={we.custom_name || ''}
-                                        onChange={(e) => updateExercise(day._tempId, we._tempId, 'custom_name', e.target.value)}
-                                        className="mt-1 w-full rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                        placeholder="Exercise name..."
-                                      />
+                          return (
+                            <div key={we._tempId} className="rounded-xl border border-dark-600 bg-dark-700/50 p-3 space-y-2">
+                              {/* Row 1: Exercise select + delete */}
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1">
+                                  <select
+                                    value={we.exercise_id}
+                                    onChange={(e) => {
+                                      updateExercise(day._tempId, we._tempId, 'exercise_id', e.target.value)
+                                      if (e.target.value !== '__other__') updateExercise(day._tempId, we._tempId, 'custom_name', '')
+                                    }}
+                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
+                                  >
+                                    <option value="">Select exercise...</option>
+                                    {exercises.filter(ex => ex.is_pr_eligible).length > 0 && (
+                                      <optgroup label="PR Exercises">
+                                        {exercises.filter(ex => ex.is_pr_eligible).map((ex) => (
+                                          <option key={ex.id} value={ex.id}>{ex.name}</option>
+                                        ))}
+                                      </optgroup>
                                     )}
-                                    {isPrEligible && prValue > 0 && (
-                                      <span className="text-[9px] text-primary-400 font-medium">PR: {prValue}kg</span>
+                                    {exercises.filter(ex => !ex.is_pr_eligible).length > 0 && (
+                                      <optgroup label="Other Exercises">
+                                        {exercises.filter(ex => !ex.is_pr_eligible).map((ex) => (
+                                          <option key={ex.id} value={ex.id}>{ex.name}</option>
+                                        ))}
+                                      </optgroup>
                                     )}
-                                  </td>
-                                  {/* Sets */}
-                                  <td className="py-2 pr-2">
+                                    <option value="__other__">✏️ Other (free text)</option>
+                                  </select>
+                                  {isOther && (
                                     <input
-                                      type="number" min={1} value={we.sets}
-                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'sets', e.target.value)}
-                                      className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
+                                      type="text" value={we.custom_name || ''}
+                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'custom_name', e.target.value)}
+                                      className="mt-1 w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
+                                      placeholder="Exercise name..."
                                     />
-                                  </td>
-                                  {/* Reps */}
-                                  <td className="py-2 pr-2">
+                                  )}
+                                  {isPrEligible && prValue > 0 && (
+                                    <p className="mt-0.5 text-[10px] text-primary-400 font-medium px-1">PR: {prValue}kg</p>
+                                  )}
+                                </div>
+                                <button onClick={() => removeExerciseFromDay(day._tempId, we._tempId)} className="mt-1 rounded-lg p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 transition">
+                                  <XMarkIcon className="h-4 w-4" />
+                                </button>
+                              </div>
+
+                              {/* Row 2: Sets | Reps | %PR | =Weight (compact, same row) */}
+                              <div className="grid grid-cols-4 gap-2">
+                                <div>
+                                  <label className="block text-[9px] text-dark-400 uppercase font-bold mb-0.5 px-1">Sets</label>
+                                  <input
+                                    type="number" min={1} value={we.sets}
+                                    onChange={(e) => updateExercise(day._tempId, we._tempId, 'sets', e.target.value)}
+                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-2 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] text-dark-400 uppercase font-bold mb-0.5 px-1">Reps</label>
+                                  <input
+                                    type="text" value={we.reps}
+                                    onChange={(e) => updateExercise(day._tempId, we._tempId, 'reps', e.target.value)}
+                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-2 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none"
+                                    placeholder="8-10"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] text-dark-400 uppercase font-bold mb-0.5 px-1">% PR</label>
+                                  {isPrEligible ? (
                                     <input
-                                      type="text" value={we.reps}
-                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'reps', e.target.value)}
-                                      className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                      placeholder="e.g. 8-10"
+                                      type="number" min={1} max={100}
+                                      value={we.percentage_of_pr || ''}
+                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'percentage_of_pr', e.target.value)}
+                                      className="w-full rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5 text-sm text-center text-primary font-bold focus:border-primary focus:outline-none"
+                                      placeholder="%"
                                     />
-                                  </td>
-                                  {/* % PR */}
-                                  <td className="py-2 pr-2">
-                                    {isPrEligible ? (
-                                      <input
-                                        type="number" min={1} max={100}
-                                        value={we.percentage_of_pr || ''}
-                                        onChange={(e) => updateExercise(day._tempId, we._tempId, 'percentage_of_pr', e.target.value)}
-                                        className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                        placeholder="%"
-                                      />
-                                    ) : (
-                                      <span className="text-[10px] text-dark-500">—</span>
-                                    )}
-                                  </td>
-                                  {/* Calculated weight */}
-                                  <td className="py-2 pr-2">
+                                  ) : (
+                                    <div className="w-full rounded-lg bg-dark-700/30 px-2 py-1.5 text-sm text-center text-dark-500">—</div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] text-dark-400 uppercase font-bold mb-0.5 px-1">= kg</label>
+                                  <div className="w-full rounded-lg border border-dark-600 bg-dark-700/30 px-2 py-1.5 text-sm text-center">
                                     {isPrEligible ? (
                                       calculatedWeight != null ? (
-                                        <span className="text-sm font-bold text-primary-400">{calculatedWeight}<span className="text-[9px] text-dark-400 ml-0.5">kg</span></span>
+                                        <span className="font-bold text-primary">{calculatedWeight}</span>
                                       ) : we.percentage_of_pr && selectedClient && prValue == null ? (
-                                        <span className="text-[9px] text-amber-400 font-medium">Set PR first</span>
+                                        <span className="text-[9px] text-amber-400 font-medium">Set PR</span>
                                       ) : (
                                         <span className="text-dark-500">—</span>
                                       )
                                     ) : (
                                       <span className="text-dark-500">—</span>
                                     )}
-                                  </td>
-                                  {/* Notes */}
-                                  <td className="py-2 pr-2">
-                                    <input
-                                      type="text" value={we.notes || ''}
-                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'notes', e.target.value)}
-                                      className="w-full min-w-[100px] rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                      placeholder={isOther ? 'Description / weight / details' : 'Notes'}
-                                    />
-                                  </td>
-                                  {/* Delete */}
-                                  <td className="py-2">
-                                    <button onClick={() => removeExerciseFromDay(day._tempId, we._tempId)} className="rounded p-1 text-dark-400 hover:text-red-400">
-                                      <XMarkIcon className="h-4 w-4" />
-                                    </button>
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Row 3: Notes (only if Other or has notes) */}
+                              {(isOther || !isPrEligible) && (
+                                <input
+                                  type="text" value={we.notes || ''}
+                                  onChange={(e) => updateExercise(day._tempId, we._tempId, 'notes', e.target.value)}
+                                  className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
+                                  placeholder={isOther ? 'Description / weight / details...' : 'Notes (optional)'}
+                                />
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   ))}
