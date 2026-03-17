@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import PasswordInput, { validatePassword, validatePasswordMatch } from '../../components/PasswordInput'
 
 export default function Settings() {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, changePassword } = useAuth()
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -24,8 +24,7 @@ export default function Settings() {
 
     setSaving(true)
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword })
-      if (error) throw error
+      await changePassword(newPassword)
       setPwSuccess(true)
       setNewPassword('')
       setConfirmPassword('')

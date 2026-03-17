@@ -18,7 +18,6 @@ export function AuthProvider({ children }) {
 
     setUser(session.user)
 
-    // Try to fetch profile
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('*')
@@ -26,12 +25,15 @@ export function AuthProvider({ children }) {
       .maybeSingle()
 
     if (existingProfile) {
+      // Clear failed attempts on successful login
+      if (existingProfile.failed_attempts > 0) {
+        await supabase.rpc('clear_failed_login', { user_email: existingProfile.email })
+      }
       setProfile(existingProfile)
       setLoading(false)
       return
     }
 
-    // Profile doesn't exist — create it
     const meta = session.user.user_metadata || {}
     const { data: newProfile } = await supabase
       .from('profiles')
@@ -49,12 +51,10 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    // 1. Load current session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       loadUser(session)
     })
 
-    // 2. React to login/logout
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
@@ -67,6 +67,11 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function signIn(email) {
+    // Check if locked before sending magic link
+    const { data: lockCheck } = await supabase.rpc('check_account_locked', { user_email: email })
+    if (lockCheck?.locked) {
+      throw new Error('Account locked — contact your trainer or admin to unlock.')
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.origin },
@@ -75,16 +80,54 @@ export function AuthProvider({ children }) {
   }
 
   async function signInWithPassword(email, password) {
+    // Check if locked
+    const { data: lockCheck } = await supabase.rpc('check_account_locked', { user_email: email })
+    if (lockCheck?.locked) {
+      throw new Error('Account locked — contact your trainer or admin to unlock.')
+    }
+
     setLoading(true)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setLoading(false)
+      // Record failed attempt
+      const { data: result } = await supabase.rpc('record_failed_login', { user_email: email })
+      if (result?.status === 'locked') {
+        throw new Error('Account locked after too many failed attempts. Contact your trainer or admin.')
+      }
+      const remaining = result?.remaining
+      if (remaining != null && remaining <= 2) {
+        throw new Error(`Invalid credentials. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before lockout.`)
+      }
       throw error
     }
-    // onAuthStateChange SIGNED_IN will call loadUser
+  }
+
+  async function changePassword(newPassword) {
+    if (!user) throw new Error('Not authenticated')
+    // Check password history
+    const { data: wasUsed } = await supabase.rpc('check_password_history', {
+      target_user_id: user.id,
+      new_password: newPassword,
+    })
+    if (wasUsed) {
+      throw new Error('You cannot reuse a recent password. Please choose a new one.')
+    }
+    // Update password
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw error
+    // Save to history
+    await supabase.rpc('save_password_history', {
+      target_user_id: user.id,
+      new_password: newPassword,
+    })
   }
 
   async function resetPassword(email) {
+    const { data: lockCheck } = await supabase.rpc('check_account_locked', { user_email: email })
+    if (lockCheck?.locked) {
+      throw new Error('Account locked — contact your trainer or admin to unlock.')
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://box-flow-eight.vercel.app',
     })
@@ -99,7 +142,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithPassword, resetPassword, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithPassword, changePassword, resetPassword, signOut }}>
       {children}
     </AuthContext.Provider>
   )

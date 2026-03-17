@@ -53,6 +53,8 @@ export default function AdminTrainers() {
           email,
           role,
           created_at,
+          locked_at,
+          failed_attempts,
           trainer_profiles (
             id,
             trainer_type,
@@ -361,8 +363,11 @@ export default function AdminTrainers() {
                           {(trainer.full_name || 'U').charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-white">
+                          <p className="text-sm font-medium text-white flex items-center gap-2">
                             {trainer.full_name || 'Unnamed'}
+                            {trainer.locked_at && (
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">Locked</span>
+                            )}
                           </p>
                           <p className="text-xs text-slate-500">
                             Joined {formatDate(trainer.created_at)}
@@ -410,6 +415,18 @@ export default function AdminTrainers() {
                         >
                           <span className="material-symbols-outlined text-[18px]">visibility</span>
                         </button>
+                        {trainer.locked_at && (
+                          <button
+                            onClick={async () => {
+                              await supabase.rpc('unlock_account', { target_user_id: trainer.id })
+                              fetchTrainers()
+                            }}
+                            className="p-2 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition"
+                            title="Unlock account"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">lock_open</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setPasswordTrainer(trainer)

@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import PasswordInput, { validatePassword, validatePasswordMatch } from '../components/PasswordInput'
 
 export default function Onboarding() {
-  const { user, profile, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading, changePassword } = useAuth()
   const navigate = useNavigate()
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
@@ -54,9 +54,8 @@ export default function Onboarding() {
 
     setSaving(true)
     try {
-      // Set password
-      const { error: pwErr } = await supabase.auth.updateUser({ password })
-      if (pwErr) throw pwErr
+      // Set password (with history check)
+      await changePassword(password)
 
       // Save phone to profile
       const { error: profileErr } = await supabase

@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import PasswordInput, { validatePassword, validatePasswordMatch } from '../../components/PasswordInput'
 
 export default function AdminDashboard() {
-  const { signOut } = useAuth()
+  const { signOut, changePassword } = useAuth()
 
   // Stats
   const [totalTrainers, setTotalTrainers] = useState(0)
@@ -328,8 +328,7 @@ export default function AdminDashboard() {
     if (!validatePasswordMatch(myNewPassword, myConfirmPassword)) { setMyPasswordError('Passwords do not match'); return }
     setChangingMyPassword(true)
     try {
-      const { error: updateErr } = await supabase.auth.updateUser({ password: myNewPassword })
-      if (updateErr) throw updateErr
+      await changePassword(myNewPassword)
       setMyPasswordSuccess(true)
       setMyNewPassword('')
       setMyConfirmPassword('')

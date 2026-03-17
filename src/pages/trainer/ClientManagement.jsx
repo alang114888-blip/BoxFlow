@@ -54,7 +54,7 @@ export default function ClientManagement() {
           client_id,
           invited_email,
           invite_accepted,
-          profiles!trainer_clients_client_id_fkey ( id, full_name, email )
+          profiles!trainer_clients_client_id_fkey ( id, full_name, email, locked_at, failed_attempts )
         `)
         .eq('trainer_id', profile.id)
 
@@ -372,7 +372,12 @@ export default function ClientManagement() {
                       {clientName.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-medium text-dark-100">{clientName}</p>
+                      <p className="font-medium text-dark-100 flex items-center gap-2">
+                        {clientName}
+                        {client.profiles?.locked_at && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">Locked</span>
+                        )}
+                      </p>
                       <p className="text-sm text-dark-400">{clientEmail}</p>
                     </div>
                   </div>
@@ -417,7 +422,7 @@ export default function ClientManagement() {
                     ) : (
                       <div className="space-y-6">
                         {/* Actions */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <button
                             onClick={() => { setPasswordClient({ id: client.client_id, name: clientName, email: clientEmail }); setNewPassword(''); setPasswordSuccess(false) }}
                             className="inline-flex items-center gap-1 rounded-md bg-dark-700 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-600 transition"
@@ -425,6 +430,18 @@ export default function ClientManagement() {
                             <KeyIcon className="h-3.5 w-3.5" />
                             Set Password
                           </button>
+                          {client.profiles?.locked_at && (
+                            <button
+                              onClick={async () => {
+                                await supabase.rpc('unlock_account', { target_user_id: client.client_id })
+                                fetchClients()
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 text-xs text-amber-400 hover:bg-amber-500/20 transition"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">lock_open</span>
+                              Unlock Account
+                            </button>
+                          )}
                         </div>
 
                         {/* PRs Table */}
