@@ -11,13 +11,13 @@ import {
 } from '@heroicons/react/24/outline'
 
 const DAYS_OF_WEEK = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
+  { label: 'Monday', value: 'monday' },
+  { label: 'Tuesday', value: 'tuesday' },
+  { label: 'Wednesday', value: 'wednesday' },
+  { label: 'Thursday', value: 'thursday' },
+  { label: 'Friday', value: 'friday' },
+  { label: 'Saturday', value: 'saturday' },
+  { label: 'Sunday', value: 'sunday' },
 ]
 
 const SECTIONS = [
@@ -685,15 +685,15 @@ export default function WorkoutPlanBuilder() {
                           updateDay(
                             day._tempId,
                             'day_of_week',
-                            e.target.value ? parseInt(e.target.value) : null
+                            e.target.value || null
                           )
                         }
                         className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
                       >
                         <option value="">No specific day</option>
-                        {DAYS_OF_WEEK.map((d, i) => (
-                          <option key={d} value={i + 1}>
-                            {d}
+                        {DAYS_OF_WEEK.map((d) => (
+                          <option key={d.value} value={d.value}>
+                            {d.label}
                           </option>
                         ))}
                       </select>
