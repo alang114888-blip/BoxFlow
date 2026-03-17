@@ -30,6 +30,7 @@ import PercentageCalculator from './pages/client/PercentageCalculator'
 import WODFeed from './pages/client/WODFeed'
 import WeeklyCheckIn from './pages/client/WeeklyCheckIn'
 import NutritionHome from './pages/client/NutritionHome'
+import MyPhotos from './pages/client/MyPhotos'
 import ClientLeaderboard from './pages/client/Leaderboard'
 import Onboarding from './pages/Onboarding'
 import ResetPassword from './pages/ResetPassword'
@@ -105,6 +106,7 @@ export default function App() {
           <Route path="/client/wod" element={<WODFeed />} />
           <Route path="/client/checkin" element={<WeeklyCheckIn />} />
           <Route path="/client/nutrition-home" element={<NutritionHome />} />
+          <Route path="/client/photos" element={<MyPhotos />} />
         </Route>
         <Route path="/client/leaderboard" element={<ClientLeaderboard />} />
       </Route>

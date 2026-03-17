@@ -116,14 +116,21 @@ export default function ClientManagement() {
       setInviteSuccess(false)
 
       // Check if already invited
-      const { data: existing } = await supabase
+      const { data: existingInvite } = await supabase
+        .from('pending_invites')
+        .select('id')
+        .eq('trainer_id', profile.id)
+        .eq('email', inviteEmail)
+        .maybeSingle()
+
+      const { data: existingTC } = await supabase
         .from('trainer_clients')
         .select('id')
         .eq('trainer_id', profile.id)
         .eq('invited_email', inviteEmail)
         .maybeSingle()
 
-      if (existing) {
+      if (existingInvite || existingTC) {
         setInviteError('This email has already been invited.')
         return
       }
@@ -135,21 +142,29 @@ export default function ClientManagement() {
         .eq('email', inviteEmail)
         .maybeSingle()
 
-      // Create trainer_clients record
-      const { error: insertErr } = await supabase.from('trainer_clients').insert({
-        trainer_id: profile.id,
-        client_id: existingProfile?.id || null,
-        invited_email: inviteEmail,
-        invite_accepted: !!existingProfile,
-      })
-
-      if (insertErr) throw insertErr
+      if (existingProfile) {
+        // Client already exists → link directly
+        const { error: insertErr } = await supabase.from('trainer_clients').insert({
+          trainer_id: profile.id,
+          client_id: existingProfile.id,
+          invited_email: inviteEmail,
+          invite_accepted: true,
+        })
+        if (insertErr) throw insertErr
+      } else {
+        // New client → store as pending invite (no client_id yet)
+        const { error: inviteErr } = await supabase.from('pending_invites').insert({
+          trainer_id: profile.id,
+          email: inviteEmail,
+        })
+        if (inviteErr) throw inviteErr
+      }
 
       // Send magic link invite
       const { error: authErr } = await supabase.auth.signInWithOtp({
         email: inviteEmail,
         options: {
-          data: { invited_by_trainer: profile.id },
+          data: { invited_by_trainer: profile.id, role: 'client' },
           shouldCreateUser: true,
           emailRedirectTo: SITE_URL + '/onboarding',
         },

@@ -65,8 +65,26 @@ export default function Onboarding() {
 
       if (profileErr) throw profileErr
 
+      // Resolve pending invites → create trainer_clients
+      const { data: pendingInvites } = await supabase
+        .from('pending_invites')
+        .select('id, trainer_id')
+        .eq('email', user.email)
+
+      if (pendingInvites?.length > 0) {
+        for (const inv of pendingInvites) {
+          await supabase.from('trainer_clients').insert({
+            trainer_id: inv.trainer_id,
+            client_id: user.id,
+            invited_email: user.email,
+            invite_accepted: true,
+          }).catch(() => {}) // ignore duplicates
+          await supabase.from('pending_invites').delete().eq('id', inv.id).catch(() => {})
+        }
+      }
+
       // Auto-assign default PR exercises from trainer (if client)
-      if (profile?.role === 'client') {
+      if (profile?.role === 'client' || pendingInvites?.length > 0) {
         const { data: tc } = await supabase.from('trainer_clients').select('trainer_id').eq('client_id', user.id).eq('invite_accepted', true).maybeSingle()
         if (tc?.trainer_id) {
           // Check for auto-assign template
