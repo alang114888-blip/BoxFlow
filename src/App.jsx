@@ -17,6 +17,7 @@ import NutritionPlanBuilder from './pages/trainer/NutritionPlanBuilder'
 import Leaderboard from './pages/trainer/Leaderboard'
 import WOD from './pages/trainer/WOD'
 import Settings from './pages/trainer/Settings'
+import PRBoard from './pages/trainer/PRBoard'
 import ClientDashboard from './pages/client/ClientDashboard'
 import MyWorkouts from './pages/client/MyWorkouts'
 import MyNutrition from './pages/client/MyNutrition'
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="/trainer/nutrition" element={<NutritionPlanBuilder />} />
           <Route path="/trainer/leaderboard" element={<Leaderboard />} />
           <Route path="/trainer/wod" element={<WOD />} />
+          <Route path="/trainer/pr-board" element={<PRBoard />} />
           <Route path="/trainer/settings" element={<Settings />} />
         </Route>
       </Route>

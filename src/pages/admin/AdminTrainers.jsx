@@ -381,11 +381,26 @@ export default function AdminTrainers() {
                       {trainer.email}
                     </td>
 
-                    {/* Type Badge */}
+                    {/* Type Selector */}
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getTrainerTypeBadgeColor(trainer)}`}>
-                        {getTrainerTypeLabel(trainer)}
-                      </span>
+                      <select
+                        value={trainer.trainer_profiles?.[0]?.trainer_type || 'fitness'}
+                        onChange={async (e) => {
+                          const newType = e.target.value
+                          const tpId = trainer.trainer_profiles?.[0]?.id
+                          if (tpId) {
+                            await supabase.from('trainer_profiles').update({ trainer_type: newType }).eq('id', tpId)
+                          } else {
+                            await supabase.from('trainer_profiles').insert({ user_id: trainer.id, trainer_type: newType })
+                          }
+                          fetchTrainers()
+                        }}
+                        className="appearance-none bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 focus:ring-1 focus:ring-primary/40 focus:outline-none cursor-pointer transition-all"
+                      >
+                        <option value="fitness">Personal Trainer</option>
+                        <option value="nutrition">Nutritionist</option>
+                        <option value="both">Both</option>
+                      </select>
                     </td>
 
                     {/* Client Load */}

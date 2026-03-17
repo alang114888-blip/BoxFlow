@@ -1,0 +1,301 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
+
+export default function PRBoard() {
+  const { profile } = useAuth()
+  const [exercises, setExercises] = useState([])
+  const [clientPRs, setClientPRs] = useState([])
+  const [clients, setClients] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // Add exercise form
+  const [showAdd, setShowAdd] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newVideo, setNewVideo] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  // Assign exercise modal
+  const [assignExercise, setAssignExercise] = useState(null)
+  const [selectedClient, setSelectedClient] = useState('')
+  const [assigning, setAssigning] = useState(false)
+
+  useEffect(() => {
+    if (!profile) return
+    fetchData()
+  }, [profile])
+
+  async function fetchData() {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const [exRes, prRes, clientRes] = await Promise.all([
+        supabase
+          .from('exercises')
+          .select('id, name, video_url, is_pr_eligible')
+          .eq('trainer_id', profile.id)
+          .eq('is_pr_eligible', true)
+          .order('name'),
+        supabase
+          .from('client_prs')
+          .select(`
+            id, weight_kg, date_achieved, updated_at,
+            client_id,
+            exercises ( id, name ),
+            profiles:client_id ( full_name, email )
+          `)
+          .in('exercise_id', (
+            await supabase
+              .from('exercises')
+              .select('id')
+              .eq('trainer_id', profile.id)
+              .eq('is_pr_eligible', true)
+          ).data?.map(e => e.id) || []),
+        supabase
+          .from('trainer_clients')
+          .select('client_id, profiles:client_id ( id, full_name, email )')
+          .eq('trainer_id', profile.id)
+          .eq('invite_accepted', true),
+      ])
+
+      setExercises(exRes.data || [])
+      setClientPRs(prRes.data || [])
+      setClients((clientRes.data || []).map(c => c.profiles).filter(Boolean))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleAddExercise(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const { error: insertErr } = await supabase.from('exercises').insert({
+        trainer_id: profile.id,
+        name: newName,
+        video_url: newVideo || null,
+        is_pr_eligible: true,
+        category: 'strength',
+      })
+      if (insertErr) throw insertErr
+      setNewName('')
+      setNewVideo('')
+      setShowAdd(false)
+      fetchData()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleAssign() {
+    if (!assignExercise || !selectedClient) return
+    setAssigning(true)
+    try {
+      // Create a PR record with 0 weight (client fills in later)
+      const { error: insertErr } = await supabase.from('client_prs').upsert({
+        client_id: selectedClient,
+        exercise_id: assignExercise.id,
+        weight_kg: 0,
+        date_achieved: new Date().toISOString().split('T')[0],
+      }, { onConflict: 'client_id,exercise_id' })
+      if (insertErr) throw insertErr
+      setAssignExercise(null)
+      setSelectedClient('')
+      fetchData()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  async function handleDeleteExercise(id) {
+    if (!confirm('Delete this PR exercise?')) return
+    await supabase.from('exercises').delete().eq('id', id)
+    fetchData()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <span className="material-symbols-outlined text-primary animate-spin text-3xl">progress_activity</span>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-bold text-white">PR Board</h2>
+          <p className="text-xs text-slate-400">Track your clients' personal records</p>
+        </div>
+        <button
+          onClick={() => setShowAdd(!showAdd)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-purple-500 text-white text-xs font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95"
+        >
+          <span className="material-symbols-outlined text-[18px]">add</span>
+          Add Exercise
+        </button>
+      </div>
+
+      {error && (
+        <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">{error}</div>
+      )}
+
+      {/* Add Exercise Form */}
+      {showAdd && (
+        <form onSubmit={handleAddExercise} className="mb-5 rounded-2xl border border-primary/10 bg-[#1a1426] p-4 space-y-3">
+          <input
+            type="text"
+            required
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Exercise name (e.g. Back Squat)"
+            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+          />
+          <input
+            type="url"
+            value={newVideo}
+            onChange={(e) => setNewVideo(e.target.value)}
+            placeholder="Video URL (optional)"
+            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+          />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setShowAdd(false)} className="flex-1 py-2.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-[#6d28d9] transition disabled:opacity-50">
+              {saving ? 'Saving...' : 'Save Exercise'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Key Exercises */}
+      {exercises.length === 0 ? (
+        <div className="text-center py-16 rounded-2xl border border-primary/10 bg-[#1a1426]">
+          <span className="material-symbols-outlined text-slate-600 text-5xl mb-3">fitness_center</span>
+          <p className="text-slate-400 text-sm">No PR exercises defined yet.</p>
+          <p className="text-slate-500 text-xs mt-1">Add exercises like Squat, Bench Press, Deadlift</p>
+        </div>
+      ) : (
+        <div className="space-y-3 mb-6">
+          {exercises.map((ex) => (
+            <div key={ex.id} className="rounded-2xl border border-primary/10 bg-[#1a1426] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-primary text-[20px]">fitness_center</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">{ex.name}</p>
+                    {ex.video_url && (
+                      <a href={ex.video_url} target="_blank" rel="noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-0.5">
+                        <span className="material-symbols-outlined text-[12px]">play_circle</span> Video
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { setAssignExercise(ex); setSelectedClient('') }}
+                    className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition"
+                    title="Assign to client"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">person_add</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteExercise(ex.id)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/5 transition"
+                    title="Delete exercise"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* PRs for this exercise */}
+              {(() => {
+                const prs = clientPRs.filter(p => p.exercises?.id === ex.id)
+                if (prs.length === 0) return (
+                  <p className="text-xs text-slate-500 italic">No clients assigned yet</p>
+                )
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                          <th className="pb-2">Client</th>
+                          <th className="pb-2 text-right">PR (kg)</th>
+                          <th className="pb-2 text-right">Updated</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {prs.map((pr) => (
+                          <tr key={pr.id}>
+                            <td className="py-2 text-sm text-slate-200">{pr.profiles?.full_name || pr.profiles?.email || '—'}</td>
+                            <td className="py-2 text-sm text-right font-bold text-primary">{pr.weight_kg > 0 ? pr.weight_kg : '—'}</td>
+                            <td className="py-2 text-xs text-right text-slate-500">
+                              {pr.date_achieved ? new Date(pr.date_achieved).toLocaleDateString() : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })()}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Assign Exercise Modal */}
+      {assignExercise && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(124, 59, 237, 0.2)' }}>
+            <h3 className="text-lg font-semibold text-white mb-1">Assign Exercise</h3>
+            <p className="text-sm text-slate-400 mb-4">
+              Assign <span className="text-primary font-medium">{assignExercise.name}</span> to a client
+            </p>
+
+            <select
+              value={selectedClient}
+              onChange={(e) => setSelectedClient(e.target.value)}
+              className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary mb-4"
+            >
+              <option value="">Select a client...</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.full_name || c.email}</option>
+              ))}
+            </select>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAssignExercise(null)}
+                className="flex-1 py-2.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssign}
+                disabled={!selectedClient || assigning}
+                className="flex-1 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-[#6d28d9] transition disabled:opacity-50"
+              >
+                {assigning ? 'Assigning...' : 'Assign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

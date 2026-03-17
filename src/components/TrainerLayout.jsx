@@ -8,7 +8,7 @@ const allTabs = [
   { key: 'clients', to: '/trainer/clients', label: 'Clients', icon: 'group', show: ['fitness', 'nutrition', 'both'] },
   { key: 'workouts', to: '/trainer/workouts', label: 'Workouts', icon: 'exercise', show: ['fitness', 'both'] },
   { key: 'nutrition', to: '/trainer/nutrition', label: 'Nutrition', icon: 'restaurant_menu', show: ['nutrition', 'both'] },
-  { key: 'pr', to: '/trainer/leaderboard', label: 'PR', icon: 'trophy', show: ['fitness', 'both'] },
+  { key: 'pr', to: '/trainer/pr-board', label: 'PR Board', icon: 'trophy', show: ['fitness', 'both'] },
   { key: 'settings', to: '/trainer/settings', label: 'Settings', icon: 'settings', show: ['fitness', 'nutrition', 'both'] },
 ]
 
