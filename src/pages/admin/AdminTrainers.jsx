@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, SITE_URL } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function AdminTrainers() {
@@ -150,7 +150,7 @@ export default function AdminTrainers() {
     setInviting(true)
 
     try {
-      const siteUrl = window.location.origin
+      const siteUrl = SITE_URL
 
       const { error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
         inviteEmail,

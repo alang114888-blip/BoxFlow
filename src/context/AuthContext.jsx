@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, SITE_URL } from '../lib/supabase'
 
 export const AuthContext = createContext(null)
 
@@ -74,7 +74,7 @@ export function AuthProvider({ children }) {
     }
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: SITE_URL },
     })
     if (error) throw error
   }
@@ -129,7 +129,7 @@ export function AuthProvider({ children }) {
       throw new Error('Account locked — contact your trainer or admin to unlock.')
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://box-flow-eight.vercel.app',
+      redirectTo: SITE_URL,
     })
     if (error) throw error
   }
