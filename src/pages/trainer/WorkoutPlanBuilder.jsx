@@ -56,6 +56,7 @@ export default function WorkoutPlanBuilder() {
   const [days, setDays] = useState([])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const [publishMetcon, setPublishMetcon] = useState(false)
 
   // Client PRs cache
   const [clientPrs, setClientPrs] = useState({})
@@ -261,6 +262,7 @@ export default function WorkoutPlanBuilder() {
             {
               _tempId: crypto.randomUUID(),
               exercise_id: '',
+              custom_name: '',
               order_index: d.workout_exercises.length,
               sets: 3,
               reps: '10',
@@ -387,14 +389,16 @@ export default function WorkoutPlanBuilder() {
         // Build exercises with section_order computed per section
         const sectionCounters = {}
         const exercisesToInsert = day.workout_exercises
-          .filter((we) => we.exercise_id)
+          .filter((we) => we.exercise_id || we.custom_name)
+          .filter((we) => we.exercise_id !== '__other__' || we.custom_name)
           .map((we, idx) => {
             const sec = we.section || 'other'
             if (sectionCounters[sec] == null) sectionCounters[sec] = 0
             const secOrder = sectionCounters[sec]++
+            const isOtherFreeText = we.exercise_id === '__other__'
             return {
               workout_day_id: newDay.id,
-              exercise_id: we.exercise_id,
+              exercise_id: isOtherFreeText ? null : we.exercise_id,
               order_index: idx,
               sets: parseInt(we.sets) || 0,
               reps: we.reps || null,
@@ -404,7 +408,9 @@ export default function WorkoutPlanBuilder() {
               manual_weight_kg: we.manual_weight_kg
                 ? parseFloat(we.manual_weight_kg)
                 : null,
-              notes: we.notes || null,
+              notes: isOtherFreeText
+                ? `[${we.custom_name}] ${we.notes || ''}`.trim()
+                : (we.notes || null),
               section: sec,
               section_order: secOrder,
             }
@@ -418,7 +424,29 @@ export default function WorkoutPlanBuilder() {
         }
       }
 
+      // Publish metcon to leaderboard as WOD
+      if (publishMetcon) {
+        const metconExercises = days.flatMap(d =>
+          d.workout_exercises.filter(we => (we.section || 'other') === 'metcon' && (we.exercise_id || we.custom_name))
+        )
+        if (metconExercises.length > 0) {
+          const details = metconExercises.map(we => {
+            const ex = we.exercise_id && we.exercise_id !== '__other__' ? exercises.find(e => e.id === we.exercise_id) : null
+            return `${we.sets || ''}x${we.reps || ''} ${ex?.name || we.custom_name || 'Exercise'}${we.notes ? ' (' + we.notes + ')' : ''}`
+          }).join('\n')
+
+          await supabase.from('wods').insert({
+            trainer_id: profile.id,
+            title: planName.trim() + ' - Metcon',
+            description: details,
+            section: 'metcon',
+            workout_details: { exercises: metconExercises.map(we => ({ name: exercises.find(e => e.id === we.exercise_id)?.name || we.custom_name, sets: we.sets, reps: we.reps, notes: we.notes })) },
+          })
+        }
+      }
+
       setMode('list')
+      setPublishMetcon(false)
       fetchPlans()
     } catch (err) {
       console.error('Save plan error:', err)
@@ -684,6 +712,18 @@ export default function WorkoutPlanBuilder() {
                         >
                           {meta.label}
                         </span>
+                        {section === 'metcon' && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <span className="text-[10px] text-dark-400 uppercase tracking-wider font-medium">Publish to Leaderboard</span>
+                            <button
+                              type="button"
+                              onClick={() => setPublishMetcon(!publishMetcon)}
+                              className={`relative w-9 h-5 rounded-full transition-colors ${publishMetcon ? 'bg-primary' : 'bg-dark-600'}`}
+                            >
+                              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${publishMetcon ? 'translate-x-4' : ''}`} />
+                            </button>
+                          </label>
+                        )}
                       </div>
 
                       {/* Exercises Table */}
@@ -692,157 +732,125 @@ export default function WorkoutPlanBuilder() {
                           <thead>
                             <tr className="border-b border-dark-600 text-left text-xs text-dark-400">
                               <th className="pb-2 pr-2">Exercise</th>
-                              <th className="pb-2 pr-2 w-16">Sets</th>
+                              <th className="pb-2 pr-2 w-14">Sets</th>
                               <th className="pb-2 pr-2 w-20">Reps</th>
-                              <th className="pb-2 pr-2 w-20">% PR</th>
-                              <th className="pb-2 pr-2 w-24">Weight (kg)</th>
-                              <th className="pb-2 pr-2">Notes</th>
+                              <th className="pb-2 pr-2 w-16">% PR</th>
+                              <th className="pb-2 pr-2 w-20">= Weight</th>
+                              <th className="pb-2 pr-2">Notes / Description</th>
                               <th className="pb-2 w-8"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {items.map((we) => {
-                              const selectedExercise = exercises.find(
-                                (ex) => ex.id === we.exercise_id
-                              )
+                              const isOther = we.exercise_id === '__other__'
+                              const selectedExercise = !isOther ? exercises.find((ex) => ex.id === we.exercise_id) : null
                               const isPrEligible = selectedExercise?.is_pr_eligible
                               const calculatedWeight = isPrEligible
                                 ? getCalculatedWeight(we.exercise_id, we.percentage_of_pr)
                                 : null
+                              const prValue = selectedClient && clientPrs[selectedClient]?.[we.exercise_id]
 
                               return (
                                 <tr key={we._tempId} className="border-b border-dark-700/50">
+                                  {/* Exercise selector */}
                                   <td className="py-2 pr-2">
                                     <select
                                       value={we.exercise_id}
-                                      onChange={(e) =>
-                                        updateExercise(
-                                          day._tempId,
-                                          we._tempId,
-                                          'exercise_id',
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full min-w-[140px] rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
+                                      onChange={(e) => {
+                                        updateExercise(day._tempId, we._tempId, 'exercise_id', e.target.value)
+                                        if (e.target.value !== '__other__') {
+                                          updateExercise(day._tempId, we._tempId, 'custom_name', '')
+                                        }
+                                      }}
+                                      className="w-full min-w-[130px] rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
                                     >
                                       <option value="">Select...</option>
-                                      {exercises.map((ex) => (
-                                        <option key={ex.id} value={ex.id}>
-                                          {ex.name}
-                                        </option>
-                                      ))}
+                                      {exercises.filter(ex => ex.is_pr_eligible).length > 0 && (
+                                        <optgroup label="PR Exercises">
+                                          {exercises.filter(ex => ex.is_pr_eligible).map((ex) => (
+                                            <option key={ex.id} value={ex.id}>{ex.name}</option>
+                                          ))}
+                                        </optgroup>
+                                      )}
+                                      {exercises.filter(ex => !ex.is_pr_eligible).length > 0 && (
+                                        <optgroup label="Other Exercises">
+                                          {exercises.filter(ex => !ex.is_pr_eligible).map((ex) => (
+                                            <option key={ex.id} value={ex.id}>{ex.name}</option>
+                                          ))}
+                                        </optgroup>
+                                      )}
+                                      <option value="__other__">Other (free text)</option>
                                     </select>
+                                    {isOther && (
+                                      <input
+                                        type="text"
+                                        value={we.custom_name || ''}
+                                        onChange={(e) => updateExercise(day._tempId, we._tempId, 'custom_name', e.target.value)}
+                                        className="mt-1 w-full rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
+                                        placeholder="Exercise name..."
+                                      />
+                                    )}
+                                    {isPrEligible && prValue > 0 && (
+                                      <span className="text-[9px] text-primary-400 font-medium">PR: {prValue}kg</span>
+                                    )}
                                   </td>
+                                  {/* Sets */}
                                   <td className="py-2 pr-2">
                                     <input
-                                      type="number"
-                                      min={1}
-                                      value={we.sets}
-                                      onChange={(e) =>
-                                        updateExercise(
-                                          day._tempId,
-                                          we._tempId,
-                                          'sets',
-                                          e.target.value
-                                        )
-                                      }
+                                      type="number" min={1} value={we.sets}
+                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'sets', e.target.value)}
                                       className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
                                     />
                                   </td>
+                                  {/* Reps */}
                                   <td className="py-2 pr-2">
                                     <input
-                                      type="text"
-                                      value={we.reps}
-                                      onChange={(e) =>
-                                        updateExercise(
-                                          day._tempId,
-                                          we._tempId,
-                                          'reps',
-                                          e.target.value
-                                        )
-                                      }
+                                      type="text" value={we.reps}
+                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'reps', e.target.value)}
                                       className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
                                       placeholder="e.g. 8-10"
                                     />
                                   </td>
+                                  {/* % PR */}
                                   <td className="py-2 pr-2">
                                     {isPrEligible ? (
                                       <input
-                                        type="number"
-                                        min={0}
-                                        max={200}
+                                        type="number" min={1} max={100}
                                         value={we.percentage_of_pr || ''}
-                                        onChange={(e) =>
-                                          updateExercise(
-                                            day._tempId,
-                                            we._tempId,
-                                            'percentage_of_pr',
-                                            e.target.value
-                                          )
-                                        }
+                                        onChange={(e) => updateExercise(day._tempId, we._tempId, 'percentage_of_pr', e.target.value)}
                                         className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
                                         placeholder="%"
                                       />
                                     ) : (
-                                      <span className="text-xs text-dark-500">N/A</span>
+                                      <span className="text-[10px] text-dark-500">—</span>
                                     )}
                                   </td>
+                                  {/* Calculated weight */}
                                   <td className="py-2 pr-2">
                                     {isPrEligible ? (
                                       calculatedWeight != null ? (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-sm font-bold text-primary-400">
-                                            {calculatedWeight}
-                                          </span>
-                                          <span className="text-[10px] text-dark-400">kg</span>
-                                        </div>
-                                      ) : we.percentage_of_pr && selectedClient ? (
-                                        <span className="text-[10px] text-amber-400">No PR set</span>
+                                        <span className="text-sm font-bold text-primary-400">{calculatedWeight}<span className="text-[9px] text-dark-400 ml-0.5">kg</span></span>
+                                      ) : we.percentage_of_pr && selectedClient && prValue == null ? (
+                                        <span className="text-[9px] text-amber-400 font-medium">Set PR first</span>
                                       ) : (
-                                        <span className="text-xs text-dark-500">—</span>
+                                        <span className="text-dark-500">—</span>
                                       )
                                     ) : (
-                                      <input
-                                        type="number"
-                                        step="0.5"
-                                        min={0}
-                                        value={we.manual_weight_kg || ''}
-                                        onChange={(e) =>
-                                          updateExercise(
-                                            day._tempId,
-                                            we._tempId,
-                                            'manual_weight_kg',
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                        placeholder="kg"
-                                      />
+                                      <span className="text-dark-500">—</span>
                                     )}
                                   </td>
+                                  {/* Notes */}
                                   <td className="py-2 pr-2">
                                     <input
-                                      type="text"
-                                      value={we.notes || ''}
-                                      onChange={(e) =>
-                                        updateExercise(
-                                          day._tempId,
-                                          we._tempId,
-                                          'notes',
-                                          e.target.value
-                                        )
-                                      }
+                                      type="text" value={we.notes || ''}
+                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'notes', e.target.value)}
                                       className="w-full min-w-[100px] rounded border border-dark-600 bg-dark-700 px-2 py-1 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                      placeholder="Notes"
+                                      placeholder={isOther ? 'Description / weight / details' : 'Notes'}
                                     />
                                   </td>
+                                  {/* Delete */}
                                   <td className="py-2">
-                                    <button
-                                      onClick={() =>
-                                        removeExerciseFromDay(day._tempId, we._tempId)
-                                      }
-                                      className="rounded p-1 text-dark-400 hover:text-red-400"
-                                    >
+                                    <button onClick={() => removeExerciseFromDay(day._tempId, we._tempId)} className="rounded p-1 text-dark-400 hover:text-red-400">
                                       <XMarkIcon className="h-4 w-4" />
                                     </button>
                                   </td>
