@@ -5,6 +5,7 @@ import { useState } from 'react'
 const navItems = [
   { to: '/admin', icon: 'dashboard', label: 'Dashboard', end: true },
   { to: '/admin/trainers', icon: 'groups', label: 'Trainers' },
+  { to: '/admin/clients', icon: 'person', label: 'Clients' },
 ]
 
 export default function AdminLayout() {

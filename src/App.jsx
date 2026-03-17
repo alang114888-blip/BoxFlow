@@ -9,6 +9,7 @@ import Auth from './pages/Auth'
 import AdminLayout from './components/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminTrainers from './pages/admin/AdminTrainers'
+import AdminClients from './pages/admin/AdminClients'
 import TrainerDashboard from './pages/trainer/TrainerDashboard'
 import ClientManagement from './pages/trainer/ClientManagement'
 import ExerciseLibrary from './pages/trainer/ExerciseLibrary'
@@ -67,6 +68,7 @@ export default function App() {
         <Route element={<AdminLayout />}>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/trainers" element={<AdminTrainers />} />
+          <Route path="/admin/clients" element={<AdminClients />} />
         </Route>
       </Route>
 
