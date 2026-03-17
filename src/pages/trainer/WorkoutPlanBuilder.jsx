@@ -278,6 +278,15 @@ export default function WorkoutPlanBuilder() {
     )
   }
 
+  function removeSectionFromDay(dayTempId, section) {
+    setDays((prev) =>
+      prev.map((d) => {
+        if (d._tempId !== dayTempId) return d
+        return { ...d, workout_exercises: d.workout_exercises.filter((we) => we.section !== section) }
+      })
+    )
+  }
+
   function removeExerciseFromDay(dayTempId, exTempId) {
     setDays((prev) =>
       prev.map((d) => {
@@ -307,10 +316,16 @@ export default function WorkoutPlanBuilder() {
   }
 
   function getCalculatedWeight(exerciseId, percentagePr) {
-    if (!selectedClient || !percentagePr) return null
+    if (!percentagePr) return null
+    if (!selectedClient) return null // no client yet, can't calc
     const prs = clientPrs[selectedClient]
-    if (!prs || !prs[exerciseId]) return null
+    if (!prs || !prs[exerciseId]) return null // no PR set
     return Math.round((prs[exerciseId] * percentagePr) / 100 * 10) / 10
+  }
+
+  function getPrValue(exerciseId) {
+    if (!selectedClient) return undefined
+    return clientPrs[selectedClient]?.[exerciseId]
   }
 
   /** Group a day's exercises by section in fixed order */
@@ -710,53 +725,52 @@ export default function WorkoutPlanBuilder() {
                   </button>
                 </div>
 
-                {/* Exercises grouped by section */}
-                <div className="space-y-4">
+                {/* Sections — each section type exists ONCE with exercises inside */}
+                <div className="space-y-3">
                   {grouped.map(({ section, meta, items }) => (
-                    <div key={section}>
-                      {/* Section Header */}
-                      <div className="mb-2 flex items-center justify-between">
-                        <span
-                          className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${meta.color}`}
-                        >
-                          {meta.label}
-                        </span>
-                        {section === 'metcon' && (
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <span className="text-[10px] text-dark-400 uppercase tracking-wider font-medium">Publish to Leaderboard</span>
-                            <button
-                              type="button"
-                              onClick={() => setPublishMetcon(!publishMetcon)}
-                              className={`relative w-9 h-5 rounded-full transition-colors ${publishMetcon ? 'bg-primary' : 'bg-dark-600'}`}
-                            >
-                              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${publishMetcon ? 'translate-x-4' : ''}`} />
+                    <div key={section} className={`rounded-xl border ${meta.color.split(' ').find(c => c.startsWith('border-')) || 'border-dark-600'} overflow-hidden`}>
+                      {/* Section header */}
+                      <div className={`flex items-center justify-between px-3 py-2 ${meta.color.split(' ').find(c => c.startsWith('bg-')) || 'bg-dark-700'}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold uppercase tracking-wider ${meta.color.split(' ').find(c => c.startsWith('text-')) || 'text-dark-300'}`}>
+                            {meta.label}
+                          </span>
+                          <span className="text-[10px] text-dark-400">({items.length})</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {section === 'metcon' && (
+                            <button type="button" onClick={() => setPublishMetcon(!publishMetcon)}
+                              className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full transition ${publishMetcon ? 'bg-primary text-white' : 'bg-dark-600 text-dark-400'}`}>
+                              {publishMetcon ? '📡 Live' : 'Publish'}
                             </button>
-                          </label>
-                        )}
+                          )}
+                          <button onClick={() => removeSectionFromDay(day._tempId, section)}
+                            className="rounded p-1 text-dark-400 hover:text-red-400 hover:bg-red-500/10 transition" title="Remove section">
+                            <XMarkIcon className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Exercise Cards (mobile-friendly, no horizontal scroll) */}
-                      <div className="space-y-2">
+                      {/* Exercises inside this section */}
+                      <div className="p-2 space-y-2">
                         {items.map((we) => {
                           const isOther = we.exercise_id === '__other__'
-                          const selectedExercise = !isOther ? exercises.find((ex) => ex.id === we.exercise_id) : null
-                          const isPrEligible = selectedExercise?.is_pr_eligible
+                          const selectedExercise = !isOther && we.exercise_id ? exercises.find((ex) => ex.id === we.exercise_id) : null
+                          const isPrEligible = selectedExercise?.is_pr_eligible || false
                           const calculatedWeight = isPrEligible ? getCalculatedWeight(we.exercise_id, we.percentage_of_pr) : null
-                          const prValue = selectedClient && clientPrs[selectedClient]?.[we.exercise_id]
+                          const prValue = getPrValue(we.exercise_id)
 
                           return (
-                            <div key={we._tempId} className="rounded-xl border border-dark-600 bg-dark-700/50 p-3 space-y-2">
-                              {/* Row 1: Exercise select + delete */}
+                            <div key={we._tempId} className="rounded-lg border border-dark-600/50 bg-dark-700/30 p-2.5 space-y-2">
+                              {/* Exercise select + delete */}
                               <div className="flex items-start gap-2">
                                 <div className="flex-1">
-                                  <select
-                                    value={we.exercise_id}
+                                  <select value={we.exercise_id}
                                     onChange={(e) => {
                                       updateExercise(day._tempId, we._tempId, 'exercise_id', e.target.value)
                                       if (e.target.value !== '__other__') updateExercise(day._tempId, we._tempId, 'custom_name', '')
                                     }}
-                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                  >
+                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none">
                                     <option value="">Select exercise...</option>
                                     {exercises.filter(ex => ex.is_pr_eligible).length > 0 && (
                                       <optgroup label="PR Exercises">
@@ -772,69 +786,64 @@ export default function WorkoutPlanBuilder() {
                                         ))}
                                       </optgroup>
                                     )}
-                                    <option value="__other__">✏️ Other (free text)</option>
+                                    <option value="__other__">Other (free text)</option>
                                   </select>
                                   {isOther && (
-                                    <input
-                                      type="text" value={we.custom_name || ''}
+                                    <input type="text" value={we.custom_name || ''}
                                       onChange={(e) => updateExercise(day._tempId, we._tempId, 'custom_name', e.target.value)}
-                                      className="mt-1 w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                      placeholder="Exercise name..."
-                                    />
+                                      className="mt-1 w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
+                                      placeholder="Exercise name..." />
                                   )}
-                                  {isPrEligible && prValue > 0 && (
+                                  {isPrEligible && prValue != null && prValue > 0 && (
                                     <p className="mt-0.5 text-[10px] text-primary-400 font-medium px-1">PR: {prValue}kg</p>
                                   )}
                                 </div>
-                                <button onClick={() => removeExerciseFromDay(day._tempId, we._tempId)} className="mt-1 rounded-lg p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 transition">
+                                <button onClick={() => removeExerciseFromDay(day._tempId, we._tempId)}
+                                  className="mt-1 rounded-lg p-1 text-dark-400 hover:text-red-400 transition">
                                   <XMarkIcon className="h-4 w-4" />
                                 </button>
                               </div>
 
-                              {/* Row 2: Sets | Reps | %PR | =Weight (compact, same row) */}
-                              <div className="grid grid-cols-4 gap-2">
+                              {/* Sets | Reps | %PR | =Weight */}
+                              <div className="grid grid-cols-4 gap-1.5">
                                 <div>
-                                  <label className="block text-[9px] text-dark-400 uppercase font-bold mb-0.5 px-1">Sets</label>
-                                  <input
-                                    type="number" min={1} value={we.sets}
+                                  <label className="block text-[9px] text-dark-500 uppercase font-bold mb-0.5 px-0.5">Sets</label>
+                                  <input type="number" min={1} value={we.sets}
                                     onChange={(e) => updateExercise(day._tempId, we._tempId, 'sets', e.target.value)}
-                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-2 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none"
-                                  />
+                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-1.5 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none" />
                                 </div>
                                 <div>
-                                  <label className="block text-[9px] text-dark-400 uppercase font-bold mb-0.5 px-1">Reps</label>
-                                  <input
-                                    type="text" value={we.reps}
+                                  <label className="block text-[9px] text-dark-500 uppercase font-bold mb-0.5 px-0.5">Reps</label>
+                                  <input type="text" value={we.reps}
                                     onChange={(e) => updateExercise(day._tempId, we._tempId, 'reps', e.target.value)}
-                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-2 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none"
-                                    placeholder="8-10"
-                                  />
+                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-1.5 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none"
+                                    placeholder="reps" />
                                 </div>
                                 <div>
-                                  <label className="block text-[9px] text-dark-400 uppercase font-bold mb-0.5 px-1">% PR</label>
+                                  <label className="block text-[9px] text-dark-500 uppercase font-bold mb-0.5 px-0.5">% PR</label>
                                   {isPrEligible ? (
-                                    <input
-                                      type="number" min={1} max={100}
+                                    <input type="number" min={1} max={100}
                                       value={we.percentage_of_pr || ''}
                                       onChange={(e) => updateExercise(day._tempId, we._tempId, 'percentage_of_pr', e.target.value)}
-                                      className="w-full rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5 text-sm text-center text-primary font-bold focus:border-primary focus:outline-none"
-                                      placeholder="%"
-                                    />
+                                      className="w-full rounded-lg border border-primary/40 bg-primary/10 px-1.5 py-1.5 text-sm text-center text-primary font-bold focus:border-primary focus:outline-none"
+                                      placeholder="%" />
+                                  ) : isOther ? (
+                                    <div className="w-full rounded-lg bg-dark-700/30 px-1.5 py-1.5 text-sm text-center text-dark-500">—</div>
                                   ) : (
-                                    <div className="w-full rounded-lg bg-dark-700/30 px-2 py-1.5 text-sm text-center text-dark-500">—</div>
+                                    <input type="number" min={1} max={100}
+                                      value={we.percentage_of_pr || ''}
+                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'percentage_of_pr', e.target.value)}
+                                      className="w-full rounded-lg border border-dark-600 bg-dark-700 px-1.5 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none"
+                                      placeholder="%" />
                                   )}
                                 </div>
                                 <div>
-                                  <label className="block text-[9px] text-dark-400 uppercase font-bold mb-0.5 px-1">= kg</label>
-                                  <div className="w-full rounded-lg border border-dark-600 bg-dark-700/30 px-2 py-1.5 text-sm text-center">
-                                    {isPrEligible ? (
-                                      calculatedWeight != null ? (
-                                        <span className="font-bold text-primary">{calculatedWeight}</span>
-                                      ) : we.percentage_of_pr && selectedClient && prValue == null ? (
-                                        <span className="text-[9px] text-amber-400 font-medium">Set PR</span>
-                                      ) : (
-                                        <span className="text-dark-500">—</span>
-                                      )
+                                  <label className="block text-[9px] text-dark-500 uppercase font-bold mb-0.5 px-0.5">= kg</label>
+                                  <div className="w-full rounded-lg bg-dark-700/30 border border-dark-600/50 px-1.5 py-1.5 text-sm text-center">
+                                    {isPrEligible && calculatedWeight != null ? (
+                                      <span className="font-bold text-primary">{calculatedWeight}</span>
+                                    ) : isPrEligible && we.percentage_of_pr ? (
+                                      <span className="text-[8px] text-amber-400 font-bold">No PR</span>
                                     ) : (
                                       <span className="text-dark-500">—</span>
                                     )}
@@ -842,37 +851,52 @@ export default function WorkoutPlanBuilder() {
                                 </div>
                               </div>
 
-                              {/* Row 3: Notes (only if Other or has notes) */}
+                              {/* Notes for Other/non-PR */}
                               {(isOther || !isPrEligible) && (
-                                <input
-                                  type="text" value={we.notes || ''}
+                                <input type="text" value={we.notes || ''}
                                   onChange={(e) => updateExercise(day._tempId, we._tempId, 'notes', e.target.value)}
-                                  className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                  placeholder={isOther ? 'Description / weight / details...' : 'Notes (optional)'}
-                                />
+                                  className="w-full rounded-lg border border-dark-600 bg-dark-700 px-2.5 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
+                                  placeholder={isOther ? 'Description / weight / details...' : 'Notes'} />
                               )}
                             </div>
                           )
                         })}
+
+                        {/* + Add exercise inside this section */}
+                        <button onClick={() => addExerciseToDay(day._tempId, section)}
+                          className="w-full py-2 rounded-lg border border-dashed border-dark-500 text-dark-400 text-xs font-medium hover:border-primary/40 hover:text-primary transition flex items-center justify-center gap-1">
+                          <PlusIcon className="h-3 w-3" /> Add exercise
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Add Exercise with Section Picker */}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-dark-400">Add exercise to:</span>
-                  {SECTIONS.map((sec) => (
-                    <button
-                      key={sec.value}
-                      onClick={() => addExerciseToDay(day._tempId, sec.value)}
-                      className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:opacity-80 ${sec.color}`}
-                    >
-                      <PlusIcon className="h-3 w-3" />
-                      {sec.label}
-                    </button>
-                  ))}
-                </div>
+                {/* Add Section — only sections not yet used */}
+                {(() => {
+                  const usedSections = new Set(day.workout_exercises.map(we => we.section))
+                  const available = SECTIONS.filter(s => !usedSections.has(s.value))
+                  if (available.length === 0) return null
+                  return (
+                    <div className="mt-3">
+                      <select
+                        defaultValue=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            addExerciseToDay(day._tempId, e.target.value)
+                            e.target.value = ''
+                          }
+                        }}
+                        className="w-full rounded-xl border-2 border-dashed border-dark-500 bg-transparent px-3 py-2.5 text-sm text-dark-400 focus:border-primary/40 focus:outline-none cursor-pointer"
+                      >
+                        <option value="" disabled>+ Add section...</option>
+                        {available.map(s => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                })()}
               </div>
             )
           })}
