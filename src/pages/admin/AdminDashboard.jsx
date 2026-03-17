@@ -44,11 +44,19 @@ export default function AdminDashboard() {
   const [trainerToDelete, setTrainerToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
-  // Set password
+  // Set password (for trainers)
   const [passwordTrainer, setPasswordTrainer] = useState(null)
   const [newPassword, setNewPassword] = useState('')
   const [settingPassword, setSettingPassword] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
+
+  // Change own password
+  const [showChangeMyPassword, setShowChangeMyPassword] = useState(false)
+  const [myNewPassword, setMyNewPassword] = useState('')
+  const [myConfirmPassword, setMyConfirmPassword] = useState('')
+  const [changingMyPassword, setChangingMyPassword] = useState(false)
+  const [myPasswordError, setMyPasswordError] = useState(null)
+  const [myPasswordSuccess, setMyPasswordSuccess] = useState(false)
 
   useEffect(() => {
     fetchStats()
@@ -261,6 +269,32 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleChangeMyPassword(e) {
+    e.preventDefault()
+    setMyPasswordError(null)
+    setMyPasswordSuccess(false)
+    if (myNewPassword !== myConfirmPassword) {
+      setMyPasswordError('Passwords do not match')
+      return
+    }
+    if (myNewPassword.length < 6) {
+      setMyPasswordError('Password must be at least 6 characters')
+      return
+    }
+    setChangingMyPassword(true)
+    try {
+      const { error: updateErr } = await supabase.auth.updateUser({ password: myNewPassword })
+      if (updateErr) throw updateErr
+      setMyPasswordSuccess(true)
+      setMyNewPassword('')
+      setMyConfirmPassword('')
+    } catch (err) {
+      setMyPasswordError(err.message || 'Failed to change password')
+    } finally {
+      setChangingMyPassword(false)
+    }
+  }
+
   const statCards = [
     {
       label: 'Total Trainers',
@@ -298,12 +332,21 @@ export default function AdminDashboard() {
               Manage trainers, clients, and platform settings
             </p>
           </div>
-          <button
-            onClick={signOut}
-            className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
-          >
-            Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setShowChangeMyPassword(true); setMyPasswordError(null); setMyPasswordSuccess(false); setMyNewPassword(''); setMyConfirmPassword('') }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
+            >
+              <KeyIcon className="h-4 w-4" />
+              Change Password
+            </button>
+            <button
+              onClick={signOut}
+              className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </header>
 
@@ -722,6 +765,63 @@ export default function AdminDashboard() {
                   className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition disabled:opacity-50"
                 >
                   {settingPassword ? 'Setting...' : 'Set Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change My Password Modal */}
+      {showChangeMyPassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm bg-dark-800 border border-dark-700 rounded-xl shadow-xl p-6">
+            <h3 className="text-lg font-semibold text-dark-100 mb-4">Change My Password</h3>
+            <form onSubmit={handleChangeMyPassword} className="space-y-4">
+              <div>
+                <label className="block text-sm text-dark-300 mb-1">New Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={myNewPassword}
+                  onChange={(e) => setMyNewPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-dark-300 mb-1">Confirm Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={myConfirmPassword}
+                  onChange={(e) => setMyConfirmPassword(e.target.value)}
+                  placeholder="Re-enter password"
+                  className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+              {myPasswordError && (
+                <p className="text-sm text-red-400">{myPasswordError}</p>
+              )}
+              {myPasswordSuccess && (
+                <p className="text-sm text-green-400">Password changed successfully!</p>
+              )}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowChangeMyPassword(false)}
+                  className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={changingMyPassword || !myNewPassword || !myConfirmPassword}
+                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition disabled:opacity-50"
+                >
+                  {changingMyPassword ? 'Changing...' : 'Change Password'}
                 </button>
               </div>
             </form>
