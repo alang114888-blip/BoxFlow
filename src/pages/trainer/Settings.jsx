@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import PasswordInput, { validatePassword, validatePasswordMatch } from '../../components/PasswordInput'
 
 export default function Settings() {
   const { profile, signOut } = useAuth()
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
@@ -16,14 +17,11 @@ export default function Settings() {
     e.preventDefault()
     setPwError(null)
     setPwSuccess(false)
-    if (newPassword !== confirmPassword) {
-      setPwError('Passwords do not match')
-      return
-    }
-    if (newPassword.length < 6) {
-      setPwError('Password must be at least 6 characters')
-      return
-    }
+
+    const { allPassed } = validatePassword(newPassword)
+    if (!allPassed) { setPwError('Password does not meet all requirements'); return }
+    if (!validatePasswordMatch(newPassword, confirmPassword)) { setPwError('Passwords do not match'); return }
+
     setSaving(true)
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword })
@@ -54,54 +52,41 @@ export default function Settings() {
           {initial}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-lg font-semibold text-dark-100 truncate">{profile?.full_name || 'Trainer'}</p>
-          <p className="text-sm text-dark-400 truncate">{profile?.email}</p>
+          <p className="text-lg font-semibold text-slate-100 truncate">{profile?.full_name || 'Trainer'}</p>
+          <p className="text-sm text-slate-400 truncate">{profile?.email}</p>
         </div>
       </div>
 
       {/* Change Password */}
       <div className="mb-4">
         <button
-          onClick={() => { setShowPassword(!showPassword); setPwError(null); setPwSuccess(false) }}
-          className="flex w-full items-center justify-between rounded-2xl border border-primary/10 bg-[#1a1426] p-4 transition-colors hover:bg-surface-accent"
+          onClick={() => { setShowPasswordForm(!showPasswordForm); setPwError(null); setPwSuccess(false); setNewPassword(''); setConfirmPassword('') }}
+          className="flex w-full items-center justify-between rounded-2xl border border-primary/10 bg-[#1a1426] p-4 transition-colors hover:bg-[#251b3a]"
         >
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-dark-300 text-[20px]">lock</span>
-            <span className="text-sm font-medium text-dark-100">Change Password</span>
+            <span className="material-symbols-outlined text-slate-300 text-[20px]">lock</span>
+            <span className="text-sm font-medium text-slate-100">Change Password</span>
           </div>
-          <span
-            className={`material-symbols-outlined text-dark-400 text-[18px] transition-transform ${showPassword ? 'rotate-90' : ''}`}
-          >
+          <span className={`material-symbols-outlined text-slate-400 text-[18px] transition-transform ${showPasswordForm ? 'rotate-90' : ''}`}>
             chevron_right
           </span>
         </button>
 
-        {showPassword && (
-          <form onSubmit={handleChangePassword} className="mt-2 space-y-3 rounded-2xl border border-primary/10 bg-[#1a1426] p-4">
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="New password"
-              className="block w-full rounded-xl border border-primary/10 bg-surface-accent px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary focus:outline-none"
-            />
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm password"
-              className="block w-full rounded-xl border border-primary/10 bg-surface-accent px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary focus:outline-none"
+        {showPasswordForm && (
+          <form onSubmit={handleChangePassword} className="mt-2 rounded-2xl border border-primary/10 bg-[#1a1426] p-4 space-y-4">
+            <PasswordInput
+              password={newPassword}
+              setPassword={setNewPassword}
+              confirmPassword={confirmPassword}
+              setConfirmPassword={setConfirmPassword}
+              disabled={saving}
             />
             {pwError && <p className="text-sm text-red-400">{pwError}</p>}
-            {pwSuccess && <p className="text-sm text-green-400">Password changed!</p>}
+            {pwSuccess && <p className="text-sm text-emerald-400">Password changed!</p>}
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-dark transition disabled:opacity-50"
+              className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white hover:bg-[#6d28d9] transition disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Update Password'}
             </button>
@@ -115,13 +100,13 @@ export default function Settings() {
           <Link
             key={item.to}
             to={item.to}
-            className="flex items-center justify-between rounded-2xl border border-primary/10 bg-[#1a1426] p-4 transition-colors hover:bg-surface-accent"
+            className="flex items-center justify-between rounded-2xl border border-primary/10 bg-[#1a1426] p-4 transition-colors hover:bg-[#251b3a]"
           >
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-dark-300 text-[20px]">{item.icon}</span>
-              <span className="text-sm font-medium text-dark-100">{item.label}</span>
+              <span className="material-symbols-outlined text-slate-300 text-[20px]">{item.icon}</span>
+              <span className="text-sm font-medium text-slate-100">{item.label}</span>
             </div>
-            <span className="material-symbols-outlined text-dark-400 text-[18px]">chevron_right</span>
+            <span className="material-symbols-outlined text-slate-400 text-[18px]">chevron_right</span>
           </Link>
         ))}
       </div>

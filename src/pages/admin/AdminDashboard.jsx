@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import PasswordInput, { validatePassword, validatePasswordMatch } from '../../components/PasswordInput'
 
 export default function AdminDashboard() {
   const { signOut } = useAuth()
@@ -322,14 +323,9 @@ export default function AdminDashboard() {
     e.preventDefault()
     setMyPasswordError(null)
     setMyPasswordSuccess(false)
-    if (myNewPassword !== myConfirmPassword) {
-      setMyPasswordError('Passwords do not match')
-      return
-    }
-    if (myNewPassword.length < 6) {
-      setMyPasswordError('Password must be at least 6 characters')
-      return
-    }
+    const { allPassed } = validatePassword(myNewPassword)
+    if (!allPassed) { setMyPasswordError('Password does not meet all requirements'); return }
+    if (!validatePasswordMatch(myNewPassword, myConfirmPassword)) { setMyPasswordError('Passwords do not match'); return }
     setChangingMyPassword(true)
     try {
       const { error: updateErr } = await supabase.auth.updateUser({ password: myNewPassword })
@@ -748,30 +744,13 @@ export default function AdminDashboard() {
           <div className="w-full max-w-sm glass-card rounded-2xl shadow-2xl p-6">
             <h3 className="text-lg font-semibold text-white mb-5">Change My Password</h3>
             <form onSubmit={handleChangeMyPassword} className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-300 mb-1.5">New Password</label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={myNewPassword}
-                  onChange={(e) => setMyNewPassword(e.target.value)}
-                  placeholder="Min 6 characters"
-                  className="block w-full rounded-xl bg-white/5 border border-glass-border px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary/40 focus:outline-none transition"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-300 mb-1.5">Confirm Password</label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={myConfirmPassword}
-                  onChange={(e) => setMyConfirmPassword(e.target.value)}
-                  placeholder="Re-enter password"
-                  className="block w-full rounded-xl bg-white/5 border border-glass-border px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary/40 focus:outline-none transition"
-                />
-              </div>
+              <PasswordInput
+                password={myNewPassword}
+                setPassword={setMyNewPassword}
+                confirmPassword={myConfirmPassword}
+                setConfirmPassword={setMyConfirmPassword}
+                disabled={changingMyPassword}
+              />
               {myPasswordError && (
                 <p className="text-sm text-red-400">{myPasswordError}</p>
               )}

@@ -24,13 +24,19 @@ import PRTracker from './pages/client/PRTracker'
 import PercentageCalculator from './pages/client/PercentageCalculator'
 import WODFeed from './pages/client/WODFeed'
 import ClientLeaderboard from './pages/client/Leaderboard'
+import Onboarding from './pages/Onboarding'
 
 function RoleRedirect() {
-  const { profile, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
 
   if (loading) return <LoadingSpinner />
 
-  if (!profile) return <Navigate to="/login" replace />
+  if (!user || !profile) return <Navigate to="/login" replace />
+
+  // New users without phone → onboarding
+  if (!profile.phone && profile.role !== 'super_admin') {
+    return <Navigate to="/onboarding" replace />
+  }
 
   switch (profile.role) {
     case 'super_admin':
@@ -48,6 +54,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Auth />} />
+      <Route path="/onboarding" element={<Onboarding />} />
 
       <Route path="/" element={<RoleRedirect />} />
 
