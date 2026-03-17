@@ -3,14 +3,18 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 
+// show = which effectiveModes display this tab
+// 'fitness' → visible when effectiveMode is 'fitness'
+// 'nutrition' → visible when effectiveMode is 'nutrition'
+// '*' → always visible regardless of mode
 const allTabs = [
-  { key: 'home', to: '/trainer', label: 'Home', icon: 'home', show: ['fitness', 'nutrition', 'both'] },
-  { key: 'clients', to: '/trainer/clients', label: 'Clients', icon: 'group', show: ['fitness', 'nutrition', 'both'] },
+  { key: 'home', to: '/trainer', label: 'Home', icon: 'home', show: ['*'] },
+  { key: 'clients', to: '/trainer/clients', label: 'Clients', icon: 'group', show: ['*'] },
   { key: 'workouts', to: '/trainer/workouts', label: 'Workouts', icon: 'exercise', show: ['fitness'] },
   { key: 'nutrition', to: '/trainer/nutrition', label: 'Nutrition', icon: 'restaurant_menu', show: ['nutrition'] },
   { key: 'pr', to: '/trainer/pr-board', label: 'PR Board', icon: 'trophy', show: ['fitness'] },
-  { key: 'wod', to: '/trainer/wod', label: 'WOD', icon: 'local_fire_department', show: ['fitness', 'both'] },
-  { key: 'settings', to: '/trainer/settings', label: 'Settings', icon: 'settings', show: ['fitness', 'nutrition', 'both'] },
+  { key: 'wod', to: '/trainer/wod', label: 'WOD', icon: 'local_fire_department', show: ['fitness'] },
+  { key: 'settings', to: '/trainer/settings', label: 'Settings', icon: 'settings', show: ['*'] },
 ]
 
 export default function TrainerLayout() {
@@ -74,7 +78,7 @@ export default function TrainerLayout() {
   // For single-type trainers, filter by their type
   const effectiveMode = trainerType === 'both' ? activeMode : trainerType
   const tabs = trainerType
-    ? allTabs.filter((t) => t.show.includes(effectiveMode) || t.show.includes('both'))
+    ? allTabs.filter((t) => t.show.includes('*') || t.show.includes(effectiveMode))
     : []
 
   const initial = (profile?.full_name || 'T').charAt(0).toUpperCase()
