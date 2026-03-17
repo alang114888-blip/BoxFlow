@@ -564,177 +564,295 @@ export default function WorkoutPlanBuilder() {
     )
   }
 
+  // Shared exercise select options renderer
+  function ExerciseOptions() {
+    return (
+      <>
+        <option value="">Select exercise...</option>
+        {exercises.filter(ex => ex.is_pr_eligible).length > 0 && (
+          <optgroup label="PR Exercises">
+            {exercises.filter(ex => ex.is_pr_eligible).map((ex) => (
+              <option key={ex.id} value={ex.id}>{ex.name}</option>
+            ))}
+          </optgroup>
+        )}
+        {exercises.filter(ex => !ex.is_pr_eligible).length > 0 && (
+          <optgroup label="Other Exercises">
+            {exercises.filter(ex => !ex.is_pr_eligible).map((ex) => (
+              <option key={ex.id} value={ex.id}>{ex.name}</option>
+            ))}
+          </optgroup>
+        )}
+        <option value="__other__">Other (free text)</option>
+      </>
+    )
+  }
+
+  // Shared section color helpers
+  function secBorderColor(meta) { return meta.color.split(' ').find(c => c.startsWith('border-')) || 'border-dark-600' }
+  function secBgColor(meta) { return meta.color.split(' ').find(c => c.startsWith('bg-')) || 'bg-dark-700' }
+  function secTextColor(meta) { return meta.color.split(' ').find(c => c.startsWith('text-')) || 'text-dark-300' }
+
+  // Get exercise info for a workout exercise
+  function getExInfo(we) {
+    const isOther = we.exercise_id === '__other__'
+    const selectedExercise = !isOther && we.exercise_id ? exercises.find((ex) => ex.id === we.exercise_id) : null
+    const isPrEligible = selectedExercise?.is_pr_eligible || false
+    const calculatedWeight = isPrEligible ? getCalculatedWeight(we.exercise_id, we.percentage_of_pr) : null
+    const prValue = getPrValue(we.exercise_id)
+    return { isOther, selectedExercise, isPrEligible, calculatedWeight, prValue }
+  }
+
+  // Keyboard handler for spreadsheet mode
+  function handleSpreadsheetKeyDown(e, dayTempId, section, exIndex, items) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      addExerciseToDay(dayTempId, section)
+    }
+    if (e.key === 'Backspace' && e.target.value === '' && items.length > 1) {
+      const we = items[exIndex]
+      if (we && !we.exercise_id) {
+        e.preventDefault()
+        removeExerciseFromDay(dayTempId, we._tempId)
+      }
+    }
+  }
+
+  const clientName = clients.find(c => c.id === selectedClient)?.full_name || ''
+  const weekLabel = (() => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1)
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  })()
+
+  // Cell classes for spreadsheet
+  const cellCls = 'px-2 py-1 text-sm text-dark-100 bg-transparent border-r border-dark-600/50 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-primary/50 focus:bg-dark-700/50'
+
   // EDIT MODE
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-6 flex items-center gap-4">
-        <button
-          onClick={() => {
-            setMode('list')
-            fetchPlans()
-          }}
-          className="rounded-lg border border-dark-600 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-dark-200"
-        >
-          <ArrowLeftIcon className="h-4 w-4" />
-        </button>
-        <h1 className="text-2xl font-bold text-dark-100">
-          {planId ? 'Edit Workout Plan' : 'Create Workout Plan'}
-        </h1>
-      </div>
-
+    <div className="p-4 md:p-6 lg:p-8">
       {saveError && (
-        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
-          {saveError}
-        </div>
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{saveError}</div>
       )}
 
-      {/* Plan Info — no plan name field, auto-generated */}
-      <div className="mb-6 rounded-xl border border-dark-700 bg-dark-800 p-4 space-y-3">
-        <div>
-          <label className="mb-1 block text-sm text-dark-300">Client *</label>
-          <select
-            value={selectedClient}
-            onChange={(e) => {
-              handleClientChange(e.target.value)
-              // Auto-generate plan name
-              const client = clients.find(c => c.id === e.target.value)
-              if (client) {
-                const weekStart = new Date()
-                weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
-                setPlanName(`${client.full_name} - Week of ${weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`)
-              }
-            }}
-            className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-          >
+      {/* ============ STICKY HEADER (desktop) ============ */}
+      <div className="hidden md:flex sticky top-0 z-20 bg-dark-900/95 backdrop-blur-sm -mx-6 lg:-mx-8 px-6 lg:px-8 py-3 mb-4 border-b border-dark-700 items-center justify-between gap-4">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <button onClick={() => { setMode('list'); fetchPlans() }} className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition">
+            <ArrowLeftIcon className="h-4 w-4" />
+          </button>
+          <select value={selectedClient} onChange={(e) => {
+            handleClientChange(e.target.value)
+            const c = clients.find(cl => cl.id === e.target.value)
+            if (c) { const ws = new Date(); ws.setDate(ws.getDate() - ws.getDay() + 1); setPlanName(`${c.full_name} - Week of ${ws.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`) }
+          }} className="rounded-lg border border-dark-600 bg-dark-700 px-3 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none max-w-[200px]">
             <option value="">Select client...</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.full_name}</option>
-            ))}
+            {clients.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
           </select>
+          {planName && <span className="text-xs text-dark-400 truncate">{planName}</span>}
         </div>
-        {planName && (
-          <p className="text-xs text-dark-400">
-            <span className="material-symbols-outlined text-[14px] align-middle mr-1">label</span>
-            {planName}
-          </p>
-        )}
-        <div>
-          <label className="mb-1 block text-sm text-dark-300">Description (optional)</label>
-          <textarea
-            value={planDescription}
-            onChange={(e) => setPlanDescription(e.target.value)}
-            rows={2}
-            className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 placeholder-dark-500 focus:border-primary-500 focus:outline-none"
-            placeholder="Optional description..."
-          />
+        <div className="flex items-center gap-2">
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary-dark transition disabled:opacity-50">
+            <span className="material-symbols-outlined text-[16px]">save</span>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          {publishMetcon && (
+            <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-1 rounded-full">📡 Publishing</span>
+          )}
         </div>
       </div>
 
-      {/* Workout Days */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-dark-100">Workout Days</h2>
-        <button
-          onClick={addDay}
-          className="flex items-center gap-1 rounded-lg border border-dark-600 px-3 py-1.5 text-sm text-dark-300 transition-colors hover:bg-dark-700"
-        >
-          <PlusIcon className="h-4 w-4" />
-          Add Day
+      {/* ============ MOBILE HEADER ============ */}
+      <div className="md:hidden mb-4">
+        <div className="flex items-center gap-3 mb-3">
+          <button onClick={() => { setMode('list'); fetchPlans() }} className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition">
+            <ArrowLeftIcon className="h-4 w-4" />
+          </button>
+          <h1 className="text-lg font-bold text-dark-100">{planId ? 'Edit Plan' : 'New Plan'}</h1>
+        </div>
+        <select value={selectedClient} onChange={(e) => {
+          handleClientChange(e.target.value)
+          const c = clients.find(cl => cl.id === e.target.value)
+          if (c) { const ws = new Date(); ws.setDate(ws.getDate() - ws.getDay() + 1); setPlanName(`${c.full_name} - Week of ${ws.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`) }
+        }} className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none mb-2">
+          <option value="">Select client...</option>
+          {clients.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+        </select>
+        {planName && <p className="text-xs text-dark-400 mb-2"><span className="material-symbols-outlined text-[14px] align-middle mr-1">label</span>{planName}</p>}
+        <textarea value={planDescription} onChange={(e) => setPlanDescription(e.target.value)} rows={1}
+          className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 placeholder-dark-500 focus:border-primary-500 focus:outline-none" placeholder="Description (optional)" />
+      </div>
+
+      {/* Description (desktop only - inline) */}
+      <div className="hidden md:block mb-4">
+        <input type="text" value={planDescription} onChange={(e) => setPlanDescription(e.target.value)}
+          className="w-full rounded-lg border border-dark-600 bg-dark-800 px-3 py-1.5 text-sm text-dark-100 placeholder-dark-500 focus:border-primary-500 focus:outline-none" placeholder="Description (optional)" />
+      </div>
+
+      {/* Day tabs + Add Day */}
+      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
+        {days.map((day, i) => (
+          <button key={day._tempId}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border border-dark-600 bg-dark-800 text-dark-200 hover:border-primary/40 transition">
+            {day.name || day.day_of_week || `Day ${i + 1}`}
+          </button>
+        ))}
+        <button onClick={addDay} className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-dashed border-dark-500 text-dark-400 hover:border-primary/40 hover:text-primary transition">
+          <PlusIcon className="h-3 w-3" /> Add Day
         </button>
       </div>
 
       {days.length === 0 ? (
         <div className="rounded-xl border border-dark-700 bg-dark-800 p-8 text-center">
-          <p className="text-sm text-dark-400">
-            No workout days added yet. Click "Add Day" to start building.
-          </p>
+          <p className="text-sm text-dark-400">No workout days yet. Click "+ Add Day" to start.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {days.map((day, dayIndex) => {
             const grouped = groupBySection(day.workout_exercises)
+            const usedSections = new Set(day.workout_exercises.map(we => we.section))
+            const availableSections = SECTIONS.filter(s => !usedSections.has(s.value))
 
             return (
-              <div
-                key={day._tempId}
-                className="rounded-xl border border-dark-700 bg-dark-800 p-4"
-              >
+              <div key={day._tempId} className="rounded-xl border border-dark-700 bg-dark-800 overflow-hidden">
                 {/* Day Header */}
-                <div className="mb-4 flex items-start justify-between gap-4">
-                  <div className="grid flex-1 gap-3 sm:grid-cols-3">
-                    <div>
-                      <label className="mb-1 block text-xs text-dark-400">
-                        Day Name
-                      </label>
-                      <input
-                        type="text"
-                        value={day.name}
-                        onChange={(e) =>
-                          updateDay(day._tempId, 'name', e.target.value)
-                        }
-                        className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                        placeholder={`Day ${dayIndex + 1}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs text-dark-400">
-                        Day of Week
-                      </label>
-                      <select
-                        value={day.day_of_week ?? ''}
-                        onChange={(e) =>
-                          updateDay(
-                            day._tempId,
-                            'day_of_week',
-                            e.target.value || null
-                          )
-                        }
-                        className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                      >
-                        <option value="">No specific day</option>
-                        {DAYS_OF_WEEK.map((d) => (
-                          <option key={d.value} value={d.value}>
-                            {d.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs text-dark-400">
-                        Session #
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={day.session_number || ''}
-                        onChange={(e) =>
-                          updateDay(
-                            day._tempId,
-                            'session_number',
-                            parseInt(e.target.value) || null
-                          )
-                        }
-                        className="w-full rounded border border-dark-600 bg-dark-700 px-2 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                      />
-                    </div>
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-dark-700 bg-dark-800/80">
+                  <div className="flex-1 flex items-center gap-3">
+                    <input type="text" value={day.name} onChange={(e) => updateDay(day._tempId, 'name', e.target.value)}
+                      className="bg-transparent border-none text-sm font-semibold text-dark-100 focus:outline-none focus:ring-0 w-28 placeholder-dark-500" placeholder={`Day ${dayIndex + 1}`} />
+                    <select value={day.day_of_week ?? ''} onChange={(e) => updateDay(day._tempId, 'day_of_week', e.target.value || null)}
+                      className="bg-transparent border border-dark-600 rounded px-2 py-1 text-xs text-dark-300 focus:border-primary-500 focus:outline-none">
+                      <option value="">Day</option>
+                      {DAYS_OF_WEEK.map(d => <option key={d.value} value={d.value}>{d.label.slice(0,3)}</option>)}
+                    </select>
                   </div>
-                  <button
-                    onClick={() => removeDay(day._tempId)}
-                    className="mt-5 rounded p-1 text-dark-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
-                  >
+                  <button onClick={() => removeDay(day._tempId)} className="p-1 rounded text-dark-500 hover:text-red-400 hover:bg-red-500/10 transition" title="Delete day">
                     <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
 
-                {/* Sections — each section type exists ONCE with exercises inside */}
-                <div className="space-y-3">
+                {/* ============ DESKTOP SPREADSHEET (md+) ============ */}
+                <div className="hidden md:block">
                   {grouped.map(({ section, meta, items }) => (
-                    <div key={section} className={`rounded-xl border ${meta.color.split(' ').find(c => c.startsWith('border-')) || 'border-dark-600'} overflow-hidden`}>
-                      {/* Section header */}
-                      <div className={`flex items-center justify-between px-3 py-2 ${meta.color.split(' ').find(c => c.startsWith('bg-')) || 'bg-dark-700'}`}>
+                    <div key={section}>
+                      {/* Section header row */}
+                      <div className={`flex items-center justify-between px-4 py-1.5 ${secBgColor(meta)} border-b border-dark-600/30`}>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-bold uppercase tracking-wider ${meta.color.split(' ').find(c => c.startsWith('text-')) || 'text-dark-300'}`}>
-                            {meta.label}
-                          </span>
+                          <div className={`w-1 h-4 rounded-full ${secTextColor(meta).replace('text-', 'bg-')}`} />
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${secTextColor(meta)}`}>{meta.label}</span>
+                          <span className="text-[10px] text-dark-500">({items.length})</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {section === 'metcon' && (
+                            <button type="button" onClick={() => setPublishMetcon(!publishMetcon)}
+                              className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full transition ${publishMetcon ? 'bg-primary text-white' : 'bg-dark-600 text-dark-400'}`}>
+                              {publishMetcon ? '📡 Live' : 'Publish'}
+                            </button>
+                          )}
+                          <button onClick={() => addExerciseToDay(day._tempId, section)}
+                            className="text-[10px] text-dark-400 hover:text-primary px-1.5 py-0.5 rounded transition">+ Add</button>
+                          <button onClick={() => removeSectionFromDay(day._tempId, section)}
+                            className="p-0.5 text-dark-500 hover:text-red-400 transition"><XMarkIcon className="h-3 w-3" /></button>
+                        </div>
+                      </div>
+
+                      {/* Spreadsheet table */}
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b border-dark-600/30 bg-dark-800/50">
+                            <th className="w-8 px-1 py-1"></th>
+                            <th className="text-left px-2 py-1 text-[9px] font-bold text-dark-500 uppercase tracking-wider">Exercise</th>
+                            <th className="w-16 px-2 py-1 text-[9px] font-bold text-dark-500 uppercase tracking-wider text-center">Sets</th>
+                            <th className="w-20 px-2 py-1 text-[9px] font-bold text-dark-500 uppercase tracking-wider text-center">Reps</th>
+                            <th className="w-16 px-2 py-1 text-[9px] font-bold text-dark-500 uppercase tracking-wider text-center">% PR</th>
+                            <th className="w-20 px-2 py-1 text-[9px] font-bold text-dark-500 uppercase tracking-wider text-center">= kg</th>
+                            <th className="px-2 py-1 text-[9px] font-bold text-dark-500 uppercase tracking-wider">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((we, exIdx) => {
+                            const { isOther, isPrEligible, calculatedWeight, prValue } = getExInfo(we)
+                            return (
+                              <tr key={we._tempId} className={`border-b border-dark-700/30 hover:bg-dark-700/20 transition-colors group border-l-2 ${secBorderColor(meta)}`}>
+                                <td className="px-1 py-0.5 text-center">
+                                  <button onClick={() => removeExerciseFromDay(day._tempId, we._tempId)}
+                                    className="opacity-0 group-hover:opacity-100 p-0.5 text-dark-500 hover:text-red-400 transition">
+                                    <XMarkIcon className="h-3.5 w-3.5" />
+                                  </button>
+                                </td>
+                                <td className="border-r border-dark-600/30 py-0.5">
+                                  <select value={we.exercise_id} onChange={(e) => {
+                                    updateExercise(day._tempId, we._tempId, 'exercise_id', e.target.value)
+                                    if (e.target.value !== '__other__') updateExercise(day._tempId, we._tempId, 'custom_name', '')
+                                  }} onKeyDown={(e) => handleSpreadsheetKeyDown(e, day._tempId, section, exIdx, items)}
+                                    className={`${cellCls} w-full border-r-0`}>
+                                    <ExerciseOptions />
+                                  </select>
+                                  {isOther && <input type="text" value={we.custom_name || ''} onChange={(e) => updateExercise(day._tempId, we._tempId, 'custom_name', e.target.value)}
+                                    className="w-full px-2 py-0.5 text-xs text-dark-300 bg-transparent border-t border-dark-600/30 focus:outline-none" placeholder="Name..." />}
+                                  {isPrEligible && prValue > 0 && <span className="px-2 text-[9px] text-primary-400">PR:{prValue}kg</span>}
+                                </td>
+                                <td className="border-r border-dark-600/30">
+                                  <input type="number" min={1} value={we.sets} onChange={(e) => updateExercise(day._tempId, we._tempId, 'sets', e.target.value)}
+                                    onKeyDown={(e) => handleSpreadsheetKeyDown(e, day._tempId, section, exIdx, items)}
+                                    className={`${cellCls} w-full text-center border-r-0`} />
+                                </td>
+                                <td className="border-r border-dark-600/30">
+                                  <input type="text" value={we.reps} onChange={(e) => updateExercise(day._tempId, we._tempId, 'reps', e.target.value)}
+                                    onKeyDown={(e) => handleSpreadsheetKeyDown(e, day._tempId, section, exIdx, items)}
+                                    className={`${cellCls} w-full text-center border-r-0`} placeholder="reps" />
+                                </td>
+                                <td className="border-r border-dark-600/30">
+                                  {isOther ? (
+                                    <div className="px-2 py-1 text-center text-dark-500 text-xs">—</div>
+                                  ) : (
+                                    <input type="number" min={1} max={100} value={we.percentage_of_pr || ''}
+                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'percentage_of_pr', e.target.value)}
+                                      onKeyDown={(e) => handleSpreadsheetKeyDown(e, day._tempId, section, exIdx, items)}
+                                      className={`${cellCls} w-full text-center border-r-0 ${isPrEligible ? 'text-primary font-bold bg-primary/5' : ''}`} placeholder="%" />
+                                  )}
+                                </td>
+                                <td className="border-r border-dark-600/30 px-2 py-1 text-center text-sm">
+                                  {isPrEligible && calculatedWeight != null ? (
+                                    <span className="font-bold text-primary">{calculatedWeight}</span>
+                                  ) : (isPrEligible || (!isOther && we.percentage_of_pr)) && we.percentage_of_pr ? (
+                                    <span className="text-[9px] text-amber-400 font-bold">No PR</span>
+                                  ) : (
+                                    <span className="text-dark-500">—</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <input type="text" value={we.notes || ''} onChange={(e) => updateExercise(day._tempId, we._tempId, 'notes', e.target.value)}
+                                    onKeyDown={(e) => handleSpreadsheetKeyDown(e, day._tempId, section, exIdx, items)}
+                                    className={`${cellCls} w-full border-r-0`} placeholder={isOther ? 'Details...' : 'Notes'} />
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+
+                  {/* Add Section footer (desktop) */}
+                  {availableSections.length > 0 && (
+                    <div className="px-4 py-2 border-t border-dark-700/50">
+                      <select defaultValue="" onChange={(e) => { if (e.target.value) { addExerciseToDay(day._tempId, e.target.value); e.target.value = '' } }}
+                        className="bg-transparent border border-dashed border-dark-500 rounded-lg px-3 py-1.5 text-xs text-dark-400 focus:border-primary/40 focus:outline-none cursor-pointer">
+                        <option value="" disabled>+ Add section...</option>
+                        {availableSections.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* ============ MOBILE CARDS (<md) ============ */}
+                <div className="md:hidden p-3 space-y-3">
+                  {grouped.map(({ section, meta, items }) => (
+                    <div key={section} className={`rounded-xl border ${secBorderColor(meta)} overflow-hidden`}>
+                      <div className={`flex items-center justify-between px-3 py-2 ${secBgColor(meta)}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold uppercase tracking-wider ${secTextColor(meta)}`}>{meta.label}</span>
                           <span className="text-[10px] text-dark-400">({items.length})</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -745,124 +863,69 @@ export default function WorkoutPlanBuilder() {
                             </button>
                           )}
                           <button onClick={() => removeSectionFromDay(day._tempId, section)}
-                            className="rounded p-1 text-dark-400 hover:text-red-400 hover:bg-red-500/10 transition" title="Remove section">
+                            className="rounded p-1 text-dark-400 hover:text-red-400 hover:bg-red-500/10 transition">
                             <XMarkIcon className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
-
-                      {/* Exercises inside this section */}
                       <div className="p-2 space-y-2">
                         {items.map((we) => {
-                          const isOther = we.exercise_id === '__other__'
-                          const selectedExercise = !isOther && we.exercise_id ? exercises.find((ex) => ex.id === we.exercise_id) : null
-                          const isPrEligible = selectedExercise?.is_pr_eligible || false
-                          const calculatedWeight = isPrEligible ? getCalculatedWeight(we.exercise_id, we.percentage_of_pr) : null
-                          const prValue = getPrValue(we.exercise_id)
-
+                          const { isOther, isPrEligible, calculatedWeight, prValue } = getExInfo(we)
                           return (
                             <div key={we._tempId} className="rounded-lg border border-dark-600/50 bg-dark-700/30 p-2.5 space-y-2">
-                              {/* Exercise select + delete */}
                               <div className="flex items-start gap-2">
                                 <div className="flex-1">
-                                  <select value={we.exercise_id}
-                                    onChange={(e) => {
-                                      updateExercise(day._tempId, we._tempId, 'exercise_id', e.target.value)
-                                      if (e.target.value !== '__other__') updateExercise(day._tempId, we._tempId, 'custom_name', '')
-                                    }}
-                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none">
-                                    <option value="">Select exercise...</option>
-                                    {exercises.filter(ex => ex.is_pr_eligible).length > 0 && (
-                                      <optgroup label="PR Exercises">
-                                        {exercises.filter(ex => ex.is_pr_eligible).map((ex) => (
-                                          <option key={ex.id} value={ex.id}>{ex.name}</option>
-                                        ))}
-                                      </optgroup>
-                                    )}
-                                    {exercises.filter(ex => !ex.is_pr_eligible).length > 0 && (
-                                      <optgroup label="Other Exercises">
-                                        {exercises.filter(ex => !ex.is_pr_eligible).map((ex) => (
-                                          <option key={ex.id} value={ex.id}>{ex.name}</option>
-                                        ))}
-                                      </optgroup>
-                                    )}
-                                    <option value="__other__">Other (free text)</option>
+                                  <select value={we.exercise_id} onChange={(e) => {
+                                    updateExercise(day._tempId, we._tempId, 'exercise_id', e.target.value)
+                                    if (e.target.value !== '__other__') updateExercise(day._tempId, we._tempId, 'custom_name', '')
+                                  }} className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 focus:border-primary-500 focus:outline-none">
+                                    <ExerciseOptions />
                                   </select>
-                                  {isOther && (
-                                    <input type="text" value={we.custom_name || ''}
-                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'custom_name', e.target.value)}
-                                      className="mt-1 w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
-                                      placeholder="Exercise name..." />
-                                  )}
-                                  {isPrEligible && prValue != null && prValue > 0 && (
-                                    <p className="mt-0.5 text-[10px] text-primary-400 font-medium px-1">PR: {prValue}kg</p>
-                                  )}
+                                  {isOther && <input type="text" value={we.custom_name || ''} onChange={(e) => updateExercise(day._tempId, we._tempId, 'custom_name', e.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none" placeholder="Exercise name..." />}
+                                  {isPrEligible && prValue > 0 && <p className="mt-0.5 text-[10px] text-primary-400 font-medium px-1">PR: {prValue}kg</p>}
                                 </div>
-                                <button onClick={() => removeExerciseFromDay(day._tempId, we._tempId)}
-                                  className="mt-1 rounded-lg p-1 text-dark-400 hover:text-red-400 transition">
+                                <button onClick={() => removeExerciseFromDay(day._tempId, we._tempId)} className="mt-1 rounded-lg p-1 text-dark-400 hover:text-red-400 transition">
                                   <XMarkIcon className="h-4 w-4" />
                                 </button>
                               </div>
-
-                              {/* Sets | Reps | %PR | =Weight */}
                               <div className="grid grid-cols-4 gap-1.5">
                                 <div>
                                   <label className="block text-[9px] text-dark-500 uppercase font-bold mb-0.5 px-0.5">Sets</label>
-                                  <input type="number" min={1} value={we.sets}
-                                    onChange={(e) => updateExercise(day._tempId, we._tempId, 'sets', e.target.value)}
+                                  <input type="number" min={1} value={we.sets} onChange={(e) => updateExercise(day._tempId, we._tempId, 'sets', e.target.value)}
                                     className="w-full rounded-lg border border-dark-600 bg-dark-700 px-1.5 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none" />
                                 </div>
                                 <div>
                                   <label className="block text-[9px] text-dark-500 uppercase font-bold mb-0.5 px-0.5">Reps</label>
-                                  <input type="text" value={we.reps}
-                                    onChange={(e) => updateExercise(day._tempId, we._tempId, 'reps', e.target.value)}
-                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-1.5 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none"
-                                    placeholder="reps" />
+                                  <input type="text" value={we.reps} onChange={(e) => updateExercise(day._tempId, we._tempId, 'reps', e.target.value)}
+                                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-1.5 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none" placeholder="reps" />
                                 </div>
                                 <div>
                                   <label className="block text-[9px] text-dark-500 uppercase font-bold mb-0.5 px-0.5">% PR</label>
-                                  {isPrEligible ? (
-                                    <input type="number" min={1} max={100}
-                                      value={we.percentage_of_pr || ''}
-                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'percentage_of_pr', e.target.value)}
-                                      className="w-full rounded-lg border border-primary/40 bg-primary/10 px-1.5 py-1.5 text-sm text-center text-primary font-bold focus:border-primary focus:outline-none"
-                                      placeholder="%" />
-                                  ) : isOther ? (
+                                  {isOther ? (
                                     <div className="w-full rounded-lg bg-dark-700/30 px-1.5 py-1.5 text-sm text-center text-dark-500">—</div>
                                   ) : (
-                                    <input type="number" min={1} max={100}
-                                      value={we.percentage_of_pr || ''}
-                                      onChange={(e) => updateExercise(day._tempId, we._tempId, 'percentage_of_pr', e.target.value)}
-                                      className="w-full rounded-lg border border-dark-600 bg-dark-700 px-1.5 py-1.5 text-sm text-center text-dark-100 focus:border-primary-500 focus:outline-none"
-                                      placeholder="%" />
+                                    <input type="number" min={1} max={100} value={we.percentage_of_pr || ''} onChange={(e) => updateExercise(day._tempId, we._tempId, 'percentage_of_pr', e.target.value)}
+                                      className={`w-full rounded-lg border px-1.5 py-1.5 text-sm text-center font-bold focus:outline-none ${isPrEligible ? 'border-primary/40 bg-primary/10 text-primary focus:border-primary' : 'border-dark-600 bg-dark-700 text-dark-100 focus:border-primary-500'}`} placeholder="%" />
                                   )}
                                 </div>
                                 <div>
                                   <label className="block text-[9px] text-dark-500 uppercase font-bold mb-0.5 px-0.5">= kg</label>
                                   <div className="w-full rounded-lg bg-dark-700/30 border border-dark-600/50 px-1.5 py-1.5 text-sm text-center">
-                                    {isPrEligible && calculatedWeight != null ? (
-                                      <span className="font-bold text-primary">{calculatedWeight}</span>
-                                    ) : isPrEligible && we.percentage_of_pr ? (
-                                      <span className="text-[8px] text-amber-400 font-bold">No PR</span>
-                                    ) : (
-                                      <span className="text-dark-500">—</span>
-                                    )}
+                                    {isPrEligible && calculatedWeight != null ? <span className="font-bold text-primary">{calculatedWeight}</span>
+                                      : (isPrEligible || we.percentage_of_pr) && we.percentage_of_pr ? <span className="text-[8px] text-amber-400 font-bold">No PR</span>
+                                      : <span className="text-dark-500">—</span>}
                                   </div>
                                 </div>
                               </div>
-
-                              {/* Notes for Other/non-PR */}
                               {(isOther || !isPrEligible) && (
-                                <input type="text" value={we.notes || ''}
-                                  onChange={(e) => updateExercise(day._tempId, we._tempId, 'notes', e.target.value)}
+                                <input type="text" value={we.notes || ''} onChange={(e) => updateExercise(day._tempId, we._tempId, 'notes', e.target.value)}
                                   className="w-full rounded-lg border border-dark-600 bg-dark-700 px-2.5 py-1.5 text-sm text-dark-100 focus:border-primary-500 focus:outline-none"
                                   placeholder={isOther ? 'Description / weight / details...' : 'Notes'} />
                               )}
                             </div>
                           )
                         })}
-
-                        {/* + Add exercise inside this section */}
                         <button onClick={() => addExerciseToDay(day._tempId, section)}
                           className="w-full py-2 rounded-lg border border-dashed border-dark-500 text-dark-400 text-xs font-medium hover:border-primary/40 hover:text-primary transition flex items-center justify-center gap-1">
                           <PlusIcon className="h-3 w-3" /> Add exercise
@@ -870,57 +933,25 @@ export default function WorkoutPlanBuilder() {
                       </div>
                     </div>
                   ))}
+                  {availableSections.length > 0 && (
+                    <select defaultValue="" onChange={(e) => { if (e.target.value) { addExerciseToDay(day._tempId, e.target.value); e.target.value = '' } }}
+                      className="w-full rounded-xl border-2 border-dashed border-dark-500 bg-transparent px-3 py-2.5 text-sm text-dark-400 focus:border-primary/40 focus:outline-none cursor-pointer">
+                      <option value="" disabled>+ Add section...</option>
+                      {availableSections.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </select>
+                  )}
                 </div>
-
-                {/* Add Section — only sections not yet used */}
-                {(() => {
-                  const usedSections = new Set(day.workout_exercises.map(we => we.section))
-                  const available = SECTIONS.filter(s => !usedSections.has(s.value))
-                  if (available.length === 0) return null
-                  return (
-                    <div className="mt-3">
-                      <select
-                        defaultValue=""
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            addExerciseToDay(day._tempId, e.target.value)
-                            e.target.value = ''
-                          }
-                        }}
-                        className="w-full rounded-xl border-2 border-dashed border-dark-500 bg-transparent px-3 py-2.5 text-sm text-dark-400 focus:border-primary/40 focus:outline-none cursor-pointer"
-                      >
-                        <option value="" disabled>+ Add section...</option>
-                        {available.map(s => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )
-                })()}
               </div>
             )
           })}
         </div>
       )}
 
-      {/* Save Button */}
-      <div className="mt-6 flex justify-end gap-3">
-        <button
-          onClick={() => {
-            setMode('list')
-            fetchPlans()
-          }}
-          className="rounded-lg border border-dark-600 px-4 py-2 text-sm text-dark-300 transition-colors hover:bg-dark-700"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 rounded-lg bg-primary-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-500 disabled:opacity-50"
-        >
-          <CheckCircleIcon className="h-4 w-4" />
-          {saving ? 'Saving...' : 'Save Plan'}
+      {/* Mobile Save Button */}
+      <div className="md:hidden mt-6 flex gap-3">
+        <button onClick={() => { setMode('list'); fetchPlans() }} className="flex-1 rounded-lg border border-dark-600 px-4 py-3 text-sm text-dark-300 transition-colors hover:bg-dark-700">Cancel</button>
+        <button onClick={handleSave} disabled={saving} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50">
+          <CheckCircleIcon className="h-4 w-4" />{saving ? 'Saving...' : 'Save Plan'}
         </button>
       </div>
     </div>
