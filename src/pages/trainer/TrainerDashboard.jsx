@@ -1,101 +1,48 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import {
   UserGroupIcon,
   ClipboardDocumentListIcon,
   BookOpenIcon,
-  PlusCircleIcon,
-  ArrowTrendingUpIcon,
-  ClockIcon,
+  FireIcon,
+  CakeIcon,
+  TrophyIcon,
 } from '@heroicons/react/24/outline'
 
 export default function TrainerDashboard() {
   const { profile } = useAuth()
-  const [stats, setStats] = useState({ clients: 0, activePlans: 0, exercises: 0 })
-  const [recentLogs, setRecentLogs] = useState([])
+  const [stats, setStats] = useState({ clients: 0, activePlans: 0, exercises: 0, wods: 0 })
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!profile) return
-    fetchDashboardData()
+    fetchStats()
   }, [profile])
 
-  async function fetchDashboardData() {
+  async function fetchStats() {
     try {
-      setLoading(true)
-      setError(null)
-
-      const [clientsRes, workoutPlansRes, nutritionPlansRes, exercisesRes] =
-        await Promise.all([
-          supabase
-            .from('trainer_clients')
-            .select('id', { count: 'exact', head: true })
-            .eq('trainer_id', profile.id)
-            .eq('invite_accepted', true),
-          supabase
-            .from('workout_plans')
-            .select('id', { count: 'exact', head: true })
-            .eq('trainer_id', profile.id)
-            .eq('is_active', true),
-          supabase
-            .from('nutrition_plans')
-            .select('id', { count: 'exact', head: true })
-            .eq('trainer_id', profile.id)
-            .eq('is_active', true),
-          supabase
-            .from('exercises')
-            .select('id', { count: 'exact', head: true })
-            .eq('trainer_id', profile.id),
-        ])
-
-      if (clientsRes.error) throw clientsRes.error
-      if (exercisesRes.error) throw exercisesRes.error
-
-      const activePlans =
-        (workoutPlansRes.count || 0) + (nutritionPlansRes.count || 0)
-
+      const [clientsRes, wpRes, npRes, exRes, wodRes] = await Promise.all([
+        supabase.from('trainer_clients').select('id', { count: 'exact', head: true })
+          .eq('trainer_id', profile.id).eq('invite_accepted', true),
+        supabase.from('workout_plans').select('id', { count: 'exact', head: true })
+          .eq('trainer_id', profile.id).eq('is_active', true),
+        supabase.from('nutrition_plans').select('id', { count: 'exact', head: true })
+          .eq('trainer_id', profile.id).eq('is_active', true),
+        supabase.from('exercises').select('id', { count: 'exact', head: true })
+          .eq('trainer_id', profile.id),
+        supabase.from('wods').select('id', { count: 'exact', head: true })
+          .eq('trainer_id', profile.id),
+      ])
       setStats({
         clients: clientsRes.count || 0,
-        activePlans,
-        exercises: exercisesRes.count || 0,
+        activePlans: (wpRes.count || 0) + (npRes.count || 0),
+        exercises: exRes.count || 0,
+        wods: wodRes.count || 0,
       })
-
-      // Fetch recent logs separately — need client IDs first
-      const { data: clientRows } = await supabase
-        .from('trainer_clients')
-        .select('client_id')
-        .eq('trainer_id', profile.id)
-        .eq('invite_accepted', true)
-
-      const clientIds = (clientRows || []).map((c) => c.client_id)
-
-      if (clientIds.length > 0) {
-        const { data: logs } = await supabase
-          .from('workout_logs')
-          .select(`
-            id,
-            completed_at,
-            notes,
-            score,
-            client_id,
-            profiles!workout_logs_client_id_fkey ( full_name ),
-            workout_days (
-              name,
-              workout_plans ( name )
-            )
-          `)
-          .in('client_id', clientIds)
-          .order('completed_at', { ascending: false })
-          .limit(10)
-        setRecentLogs(logs || [])
-      } else {
-        setRecentLogs([])
-      }
     } catch (err) {
-      console.error('Dashboard fetch error:', err)
-      setError(err.message)
+      console.error('Stats error:', err)
     } finally {
       setLoading(false)
     }
@@ -104,171 +51,68 @@ export default function TrainerDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-dark-600 border-t-primary-500" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="p-8">
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
-          Failed to load dashboard: {error}
-        </div>
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-dark-600 border-t-primary-500" />
       </div>
     )
   }
 
   const statCards = [
-    {
-      label: 'Total Clients',
-      value: stats.clients,
-      icon: UserGroupIcon,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-    },
-    {
-      label: 'Active Plans',
-      value: stats.activePlans,
-      icon: ClipboardDocumentListIcon,
-      color: 'text-green-400',
-      bg: 'bg-green-500/10',
-    },
-    {
-      label: 'Exercises in Library',
-      value: stats.exercises,
-      icon: BookOpenIcon,
-      color: 'text-purple-400',
-      bg: 'bg-purple-500/10',
-    },
+    { label: 'Clients', value: stats.clients, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Active Plans', value: stats.activePlans, icon: ClipboardDocumentListIcon, color: 'text-green-400', bg: 'bg-green-500/10' },
+    { label: 'Exercises', value: stats.exercises, icon: BookOpenIcon, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'WODs', value: stats.wods, icon: FireIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+  ]
+
+  const quickActions = [
+    { label: 'Add Client', to: '/trainer/clients', icon: UserGroupIcon, desc: 'Invite a new client' },
+    { label: 'Create Workout', to: '/trainer/workouts', icon: ClipboardDocumentListIcon, desc: 'Build a workout plan' },
+    { label: 'Publish WOD', to: '/trainer/wod', icon: FireIcon, desc: 'Post workout of the day' },
+    { label: 'Meal Plan', to: '/trainer/nutrition', icon: CakeIcon, desc: 'Design a nutrition plan' },
+    { label: 'Exercises', to: '/trainer/settings', icon: BookOpenIcon, desc: 'Manage exercise library' },
+    { label: 'Leaderboard', to: '/trainer/leaderboard', icon: TrophyIcon, desc: 'View client scores' },
   ]
 
   return (
-    <div className="p-6 lg:p-8">
-      {/* Welcome */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-dark-100">
-          Welcome back, {profile?.full_name || 'Coach'}
-        </h1>
-        <p className="mt-1 text-dark-400">
-          Here is an overview of your coaching activity.
-        </p>
+    <div>
+      {/* Greeting */}
+      <div className="mb-5">
+        <h2 className="text-xl font-bold text-dark-100">
+          Hey, {profile?.full_name?.split(' ')[0] || 'Coach'}
+        </h2>
+        <p className="text-sm text-dark-400">Here's your overview</p>
       </div>
 
-      {/* Stat Cards */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {statCards.map((card) => (
-          <div
-            key={card.label}
-            className="flex items-center gap-4 rounded-xl border border-dark-700 bg-dark-800 p-5"
-          >
-            <div className={`rounded-lg p-3 ${card.bg}`}>
-              <card.icon className={`h-6 w-6 ${card.color}`} />
+      {/* Stats Grid */}
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        {statCards.map((s) => (
+          <div key={s.label} className="flex items-center gap-3 rounded-xl border border-dark-700 bg-dark-800 p-4">
+            <div className={`rounded-lg p-2 ${s.bg}`}>
+              <s.icon className={`h-5 w-5 ${s.color}`} />
             </div>
             <div>
-              <p className="text-sm text-dark-400">{card.label}</p>
-              <p className="text-2xl font-semibold text-dark-100">{card.value}</p>
+              <p className="text-2xl font-bold text-dark-100">{s.value}</p>
+              <p className="text-xs text-dark-400">{s.label}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Activity */}
-        <div className="rounded-xl border border-dark-700 bg-dark-800 p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <ClockIcon className="h-5 w-5 text-primary-500" />
-            <h2 className="text-lg font-semibold text-dark-100">Recent Activity</h2>
-          </div>
-
-          {recentLogs.length === 0 ? (
-            <p className="text-sm text-dark-400">
-              No recent workout logs from your clients yet.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {recentLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-start justify-between rounded-lg bg-dark-700/50 p-3"
-                >
-                  <div>
-                    <p className="font-medium text-dark-100">
-                      {log.profiles?.full_name || 'Unknown Client'}
-                    </p>
-                    <p className="text-sm text-dark-400">
-                      {log.workout_days?.workout_plans?.name} &mdash;{' '}
-                      {log.workout_days?.name}
-                    </p>
-                    {log.notes && (
-                      <p className="mt-1 text-xs text-dark-500">{log.notes}</p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    {log.score != null && (
-                      <span className="flex items-center gap-1 text-sm font-semibold text-primary-400">
-                        <ArrowTrendingUpIcon className="h-4 w-4" />
-                        {log.score}
-                      </span>
-                    )}
-                    <p className="text-xs text-dark-500">
-                      {new Date(log.completed_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
+      {/* Quick Actions */}
+      <h3 className="mb-3 text-sm font-semibold text-dark-300 uppercase tracking-wider">Quick Actions</h3>
+      <div className="grid grid-cols-2 gap-3">
+        {quickActions.map((a) => (
+          <Link
+            key={a.label}
+            to={a.to}
+            className="flex items-center gap-3 rounded-xl border border-dark-700 bg-dark-800 p-4 transition-colors hover:border-primary-500/40 hover:bg-dark-700 active:scale-[0.98]"
+          >
+            <a.icon className="h-5 w-5 text-primary-400 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-dark-100 truncate">{a.label}</p>
+              <p className="text-[11px] text-dark-400 truncate">{a.desc}</p>
             </div>
-          )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="rounded-xl border border-dark-700 bg-dark-800 p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <PlusCircleIcon className="h-5 w-5 text-primary-500" />
-            <h2 className="text-lg font-semibold text-dark-100">Quick Actions</h2>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              {
-                label: 'Add Client',
-                href: '/trainer/clients',
-                icon: UserGroupIcon,
-                desc: 'Invite a new client',
-              },
-              {
-                label: 'Create Workout',
-                href: '/trainer/workouts',
-                icon: ClipboardDocumentListIcon,
-                desc: 'Build a workout plan',
-              },
-              {
-                label: 'Create Meal Plan',
-                href: '/trainer/nutrition',
-                icon: BookOpenIcon,
-                desc: 'Design a nutrition plan',
-              },
-              {
-                label: 'Exercise Library',
-                href: '/trainer/exercises',
-                icon: ArrowTrendingUpIcon,
-                desc: 'Manage your exercises',
-              },
-            ].map((action) => (
-              <a
-                key={action.label}
-                href={action.href}
-                className="flex items-center gap-3 rounded-lg border border-dark-600 bg-dark-700/50 p-4 transition-colors hover:border-primary-500/50 hover:bg-dark-700"
-              >
-                <action.icon className="h-5 w-5 text-primary-500" />
-                <div>
-                  <p className="text-sm font-medium text-dark-100">{action.label}</p>
-                  <p className="text-xs text-dark-400">{action.desc}</p>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
+          </Link>
+        ))}
       </div>
     </div>
   )

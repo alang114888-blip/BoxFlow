@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
+import TrainerLayout from './components/TrainerLayout'
 import LoadingSpinner from './components/LoadingSpinner'
 import Auth from './pages/Auth'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -12,6 +13,7 @@ import WorkoutPlanBuilder from './pages/trainer/WorkoutPlanBuilder'
 import NutritionPlanBuilder from './pages/trainer/NutritionPlanBuilder'
 import Leaderboard from './pages/trainer/Leaderboard'
 import WOD from './pages/trainer/WOD'
+import Settings from './pages/trainer/Settings'
 import ClientDashboard from './pages/client/ClientDashboard'
 import MyWorkouts from './pages/client/MyWorkouts'
 import MyNutrition from './pages/client/MyNutrition'
@@ -52,9 +54,9 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* Trainer Routes */}
+      {/* Trainer Routes — mobile-first bottom nav layout */}
       <Route element={<ProtectedRoute allowedRoles={['trainer']} />}>
-        <Route element={<Layout />}>
+        <Route element={<TrainerLayout />}>
           <Route path="/trainer" element={<TrainerDashboard />} />
           <Route path="/trainer/clients" element={<ClientManagement />} />
           <Route path="/trainer/exercises" element={<ExerciseLibrary />} />
@@ -62,6 +64,7 @@ export default function App() {
           <Route path="/trainer/nutrition" element={<NutritionPlanBuilder />} />
           <Route path="/trainer/leaderboard" element={<Leaderboard />} />
           <Route path="/trainer/wod" element={<WOD />} />
+          <Route path="/trainer/settings" element={<Settings />} />
         </Route>
       </Route>
 
