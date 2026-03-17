@@ -749,8 +749,6 @@ export default function WorkoutPlanBuilder() {
                               {publishMetcon ? '📡 Live' : 'Publish'}
                             </button>
                           )}
-                          <button onClick={() => addExerciseToDay(day._tempId, section)}
-                            className="text-[10px] text-dark-400 hover:text-primary px-1.5 py-0.5 rounded transition">+ Add</button>
                           <button onClick={() => removeSectionFromDay(day._tempId, section)}
                             className="p-0.5 text-dark-500 hover:text-red-400 transition"><XMarkIcon className="h-3 w-3" /></button>
                         </div>
@@ -830,6 +828,16 @@ export default function WorkoutPlanBuilder() {
                             )
                           })}
                         </tbody>
+                        <tfoot>
+                          <tr>
+                            <td colSpan={7}>
+                              <button onClick={() => addExerciseToDay(day._tempId, section)}
+                                className="w-full py-2 text-xs font-medium text-dark-400 hover:text-primary border-t border-dashed border-dark-600/50 hover:border-primary/30 transition flex items-center justify-center gap-1">
+                                <PlusIcon className="h-3 w-3" /> Add exercise
+                              </button>
+                            </td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
                   ))}
