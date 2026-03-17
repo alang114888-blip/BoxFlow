@@ -8,6 +8,7 @@ export default function AdminTrainers() {
   const [trainers, setTrainers] = useState([])
   const [loadingTrainers, setLoadingTrainers] = useState(true)
   const [error, setError] = useState(null)
+  const [typeSaved, setTypeSaved] = useState(null)
 
   // Filter
   const [filter, setFilter] = useState('all')
@@ -374,12 +375,43 @@ export default function AdminTrainers() {
                         onChange={async (e) => {
                           const newType = e.target.value
                           const tpId = trainer.trainer_profiles?.[0]?.id
-                          if (tpId) {
-                            await supabase.from('trainer_profiles').update({ trainer_type: newType }).eq('id', tpId)
-                          } else {
-                            await supabase.from('trainer_profiles').insert({ user_id: trainer.id, trainer_type: newType })
+
+                          // Optimistic update
+                          setTrainers(prev => prev.map(t => {
+                            if (t.id !== trainer.id) return t
+                            const tp = t.trainer_profiles?.[0]
+                            return {
+                              ...t,
+                              trainer_profiles: tp
+                                ? [{ ...tp, trainer_type: newType }]
+                                : [{ id: 'temp', trainer_type: newType, user_id: trainer.id }],
+                            }
+                          }))
+
+                          try {
+                            let result
+                            if (tpId) {
+                              result = await supabase.from('trainer_profiles').update({ trainer_type: newType }).eq('id', tpId)
+                            } else {
+                              result = await supabase.from('trainer_profiles').insert({ user_id: trainer.id, trainer_type: newType })
+                            }
+
+                            if (result.error) {
+                              // RLS might block — try via user_id match
+                              const { error: retryErr } = await supabase.from('trainer_profiles').upsert({
+                                user_id: trainer.id,
+                                trainer_type: newType,
+                              }, { onConflict: 'user_id' })
+                              if (retryErr) throw retryErr
+                            }
+
+                            setTypeSaved(trainer.id)
+                            setTimeout(() => setTypeSaved(null), 2000)
+                          } catch (err) {
+                            console.error('Failed to update trainer type:', err)
+                            setError('Failed to update trainer type: ' + err.message)
+                            fetchTrainers() // revert optimistic update
                           }
-                          fetchTrainers()
                         }}
                         className="bg-[#1a1225] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 focus:ring-1 focus:ring-primary/40 focus:outline-none cursor-pointer transition-all"
                       >
@@ -387,6 +419,9 @@ export default function AdminTrainers() {
                         <option value="nutrition" className="bg-[#1a1225] text-slate-200">Nutritionist</option>
                         <option value="both" className="bg-[#1a1225] text-slate-200">Both</option>
                       </select>
+                      {typeSaved === trainer.id && (
+                        <span className="ml-1 text-[10px] text-emerald-400 font-medium">Saved!</span>
+                      )}
                     </td>
 
                     {/* Client Load */}
