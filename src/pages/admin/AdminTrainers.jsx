@@ -381,11 +381,11 @@ export default function AdminTrainers() {
                           }
                           fetchTrainers()
                         }}
-                        className="appearance-none bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 focus:ring-1 focus:ring-primary/40 focus:outline-none cursor-pointer transition-all"
+                        className="bg-[#1a1225] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 focus:ring-1 focus:ring-primary/40 focus:outline-none cursor-pointer transition-all"
                       >
-                        <option value="fitness">Personal Trainer</option>
-                        <option value="nutrition">Nutritionist</option>
-                        <option value="both">Both</option>
+                        <option value="fitness" className="bg-[#1a1225] text-slate-200">Personal Trainer</option>
+                        <option value="nutrition" className="bg-[#1a1225] text-slate-200">Nutritionist</option>
+                        <option value="both" className="bg-[#1a1225] text-slate-200">Both</option>
                       </select>
                     </td>
 
