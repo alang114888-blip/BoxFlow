@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import NutritionistHome from './NutritionistHome'
 
 function getMonday(d) {
   const date = new Date(d)
@@ -15,6 +16,13 @@ function getMonday(d) {
 export default function TrainerDashboard() {
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const outletContext = useOutletContext() || {}
+  const activeMode = outletContext.activeMode
+
+  // Nutritionist mode → show NutritionistHome instead
+  if (activeMode === 'nutrition') {
+    return <NutritionistHome />
+  }
   const [stats, setStats] = useState({ clients: 0, workouts: 0, activity: 0 })
   const [loading, setLoading] = useState(true)
   const [clients, setClients] = useState([])
