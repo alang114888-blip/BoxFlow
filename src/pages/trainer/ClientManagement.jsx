@@ -34,6 +34,10 @@ export default function ClientManagement() {
   // Delete client
   const [clientToDelete, setClientToDelete] = useState(null)
 
+  // Pending invite actions
+  const [pendingToDelete, setPendingToDelete] = useState(null)
+  const [resendSuccess, setResendSuccess] = useState(null)
+
   // Set password
   const [passwordClient, setPasswordClient] = useState(null)
   const [newPassword, setNewPassword] = useState('')
@@ -348,6 +352,13 @@ export default function ClientManagement() {
         </div>
       )}
 
+      {resendSuccess && (
+        <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[16px]">check_circle</span>
+          Invite resent to {resendSuccess}
+        </div>
+      )}
+
       {/* Search & Filter */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
@@ -441,9 +452,53 @@ export default function ClientManagement() {
                         )}
                       </>
                     ) : (
-                      <span className="rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-medium text-yellow-400">
-                        Pending Invite
-                      </span>
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <span className="rounded-full bg-yellow-500/10 px-2 py-0.5 text-[10px] font-medium text-yellow-400">
+                          Pending
+                        </span>
+                        {pendingToDelete === client.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={async () => {
+                                const pendingId = client.id.replace('pending-', '')
+                                await supabase.from('pending_invites').delete().eq('id', pendingId)
+                                setPendingToDelete(null)
+                                fetchClients()
+                              }}
+                              className="rounded bg-red-600 px-2 py-0.5 text-[10px] text-white font-medium"
+                            >Yes</button>
+                            <button onClick={() => setPendingToDelete(null)}
+                              className="rounded bg-dark-600 px-2 py-0.5 text-[10px] text-dark-200"
+                            >No</button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await supabase.auth.signInWithOtp({
+                                    email: clientEmail,
+                                    options: { data: { invited_by_trainer: profile.id, role: 'client' }, shouldCreateUser: true, emailRedirectTo: SITE_URL + '/onboarding' },
+                                  })
+                                  const pendingId = client.id.replace('pending-', '')
+                                  await supabase.from('pending_invites').update({ created_at: new Date().toISOString() }).eq('id', pendingId)
+                                  setResendSuccess(clientEmail)
+                                  setTimeout(() => setResendSuccess(null), 3000)
+                                } catch (err) { console.error(err) }
+                              }}
+                              className="rounded-lg bg-dark-700 p-1.5 text-dark-300 hover:text-primary hover:bg-dark-600 transition" title="Resend invite"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">send</span>
+                            </button>
+                            <button
+                              onClick={() => setPendingToDelete(client.id)}
+                              className="rounded-lg bg-dark-700 p-1.5 text-dark-300 hover:text-red-400 hover:bg-red-500/10 transition" title="Cancel invite"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">close</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
