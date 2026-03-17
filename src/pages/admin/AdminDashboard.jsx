@@ -127,6 +127,8 @@ export default function AdminDashboard() {
     setInviting(true)
 
     try {
+      const siteUrl = window.location.origin
+
       // Send magic link invite with role metadata
       const { error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
         inviteEmail,
@@ -136,12 +138,12 @@ export default function AdminDashboard() {
             full_name: inviteName,
             trainer_type: trainerType,
           },
+          redirectTo: siteUrl,
         }
       )
 
       if (inviteErr) {
         // Fallback: if admin API isn't available, use signInWithOtp
-        // and create the profile manually
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email: inviteEmail,
           options: {
@@ -150,6 +152,7 @@ export default function AdminDashboard() {
               full_name: inviteName,
               trainer_type: trainerType,
             },
+            emailRedirectTo: siteUrl,
           },
         })
         if (otpError) throw otpError
