@@ -39,6 +39,7 @@ export default function Settings() {
 
   const menuItems = [
     { label: 'Exercise Library', to: '/trainer/exercises', icon: 'menu_book' },
+    { label: 'Templates', to: '/trainer/templates', icon: 'content_copy' },
     { label: 'WOD', to: '/trainer/wod', icon: 'local_fire_department' },
     { label: 'Leaderboard', to: '/trainer/leaderboard', icon: 'trophy' },
   ]

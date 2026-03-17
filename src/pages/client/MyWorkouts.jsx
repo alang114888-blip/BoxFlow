@@ -48,13 +48,21 @@ export default function MyWorkouts() {
   const [showCompleteForm, setShowCompleteForm] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
 
+  // Completion status tracking
+  const [completionStatuses, setCompletionStatuses] = useState({})
+  const [statusNotes, setStatusNotes] = useState('')
+  const [showStatusForm, setShowStatusForm] = useState(null) // 'done' | 'skipped' | null
+  const [savingStatus, setSavingStatus] = useState(false)
+  const [completionHistory, setCompletionHistory] = useState([])
+  const [showCompletionHistory, setShowCompletionHistory] = useState(false)
+
   const fetchData = useCallback(async () => {
     if (!profile?.id) return
     try {
       setLoading(true)
       setError(null)
 
-      const [planRes, prRes, logsRes] = await Promise.all([
+      const [planRes, prRes, logsRes, completionsRes] = await Promise.all([
         supabase
           .from('workout_plans')
           .select(`
@@ -87,6 +95,11 @@ export default function MyWorkouts() {
           .eq('client_id', profile.id)
           .order('completed_at', { ascending: false })
           .limit(20),
+
+        supabase
+          .from('workout_completions')
+          .select('*')
+          .eq('client_id', profile.id),
       ])
 
       if (planRes.error && planRes.error.code !== 'PGRST116') throw planRes.error
@@ -99,6 +112,15 @@ export default function MyWorkouts() {
       }
       setPrs(prMap)
       setLogs(logsRes.data || [])
+
+      // Build completion status map keyed by workout_day_id
+      const statusMap = {}
+      if (completionsRes.data) {
+        completionsRes.data.forEach((c) => {
+          statusMap[c.workout_day_id] = c
+        })
+      }
+      setCompletionStatuses(statusMap)
 
       if (planRes.data) {
         setPlan(planRes.data)
@@ -122,6 +144,18 @@ export default function MyWorkouts() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  // Fetch completion history for a day
+  async function fetchCompletionHistory(dayId) {
+    const { data } = await supabase
+      .from('workout_completions')
+      .select('*')
+      .eq('client_id', profile.id)
+      .eq('workout_day_id', dayId)
+      .order('created_at', { ascending: false })
+
+    setCompletionHistory(data || [])
+  }
 
   function calculateWeight(exercise) {
     const ex = exercise.exercises
@@ -161,11 +195,42 @@ export default function MyWorkouts() {
     }
   }
 
+  async function handleSetStatus(status) {
+    if (!selectedDayId || savingStatus) return
+    try {
+      setSavingStatus(true)
+      setError(null)
+
+      const payload = {
+        client_id: profile.id,
+        workout_day_id: selectedDayId,
+        status,
+        client_notes: statusNotes.trim() || null,
+        completed_at: status === 'done' ? new Date().toISOString() : null,
+      }
+
+      const { error: upsertErr } = await supabase
+        .from('workout_completions')
+        .upsert(payload, { onConflict: 'client_id,workout_day_id' })
+
+      if (upsertErr) throw upsertErr
+
+      setStatusNotes('')
+      setShowStatusForm(null)
+      await fetchData()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingStatus(false)
+    }
+  }
+
   const selectedDay = workoutDays.find((d) => d.id === selectedDayId)
   const allExercises = selectedDay?.workout_exercises
     ? [...selectedDay.workout_exercises]
     : []
   const sectionGroups = groupBySection(allExercises)
+  const currentCompletion = selectedDayId ? completionStatuses[selectedDayId] : null
 
   if (loading) {
     return (
@@ -209,34 +274,63 @@ export default function MyWorkouts() {
 
       {/* Day Tabs */}
       <div className="flex flex-wrap gap-2">
-        {workoutDays.map((day) => (
-          <button
-            key={day.id}
-            onClick={() => {
-              setSelectedDayId(day.id)
-              setShowCompleteForm(false)
-            }}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              selectedDayId === day.id
-                ? 'bg-primary-600 text-white'
-                : 'bg-dark-700 text-dark-300 hover:bg-dark-600 hover:text-dark-200'
-            }`}
-          >
-            {day.name || day.day_of_week}
-          </button>
-        ))}
+        {workoutDays.map((day) => {
+          const dayCompletion = completionStatuses[day.id]
+          return (
+            <button
+              key={day.id}
+              onClick={() => {
+                setSelectedDayId(day.id)
+                setShowCompleteForm(false)
+                setShowStatusForm(null)
+                setShowCompletionHistory(false)
+              }}
+              className={`relative rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                selectedDayId === day.id
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-dark-700 text-dark-300 hover:bg-dark-600 hover:text-dark-200'
+              }`}
+            >
+              {day.name || day.day_of_week}
+              {dayCompletion && (
+                <span className={`absolute -top-1 -right-1 flex h-3 w-3 rounded-full ${
+                  dayCompletion.status === 'done' ? 'bg-green-500' : dayCompletion.status === 'skipped' ? 'bg-red-500' : 'bg-yellow-500'
+                }`} />
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {/* Exercise Table grouped by section */}
       {selectedDay && (
         <div className="rounded-lg border border-dark-700 bg-dark-800">
           <div className="border-b border-dark-700 px-5 py-3">
-            <h2 className="font-semibold text-dark-100">
-              {selectedDay.name || selectedDay.day_of_week}
-            </h2>
-            {selectedDay.session_number && (
-              <p className="text-xs text-dark-500">Session {selectedDay.session_number}</p>
-            )}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-dark-100">
+                  {selectedDay.name || selectedDay.day_of_week}
+                </h2>
+                {selectedDay.session_number && (
+                  <p className="text-xs text-dark-500">Session {selectedDay.session_number}</p>
+                )}
+              </div>
+              {/* Status Badge */}
+              {currentCompletion && (
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                  currentCompletion.status === 'done'
+                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                    : currentCompletion.status === 'skipped'
+                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                }`}>
+                  <span className="material-symbols-outlined text-sm">
+                    {currentCompletion.status === 'done' ? 'check_circle' : currentCompletion.status === 'skipped' ? 'cancel' : 'pending'}
+                  </span>
+                  {currentCompletion.status === 'done' ? 'Done' : currentCompletion.status === 'skipped' ? 'Skipped' : 'Pending'}
+                </span>
+              )}
+            </div>
           </div>
 
           {sectionGroups.length > 0 ? (
@@ -292,17 +386,110 @@ export default function MyWorkouts() {
             </div>
           )}
 
-          {/* Mark as Done */}
+          {/* Trainer Feedback */}
+          {currentCompletion?.trainer_feedback && (
+            <div className="border-t border-dark-700 px-5 py-4">
+              <div className="rounded-xl border border-primary-500/20 bg-primary-500/5 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined text-lg text-primary-400">comment</span>
+                  <p className="text-xs font-semibold text-primary-400 uppercase tracking-wide">Trainer Feedback</p>
+                </div>
+                <p className="text-sm text-dark-200">{currentCompletion.trainer_feedback}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Done / Skipped Buttons */}
           <div className="border-t border-dark-700 px-5 py-4">
-            {!showCompleteForm ? (
-              <button
-                onClick={() => setShowCompleteForm(true)}
-                className="flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-500"
-              >
-                <CheckCircleIcon className="h-5 w-5" />
-                Mark as Done
-              </button>
+            {!showStatusForm && !showCompleteForm ? (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => setShowStatusForm('done')}
+                  className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors ${
+                    currentCompletion?.status === 'done'
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : 'bg-green-600 text-white hover:bg-green-500'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-lg">check_circle</span>
+                  {currentCompletion?.status === 'done' ? 'Done' : 'Mark as Done'}
+                </button>
+                <button
+                  onClick={() => setShowStatusForm('skipped')}
+                  className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors ${
+                    currentCompletion?.status === 'skipped'
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : 'bg-red-600/80 text-white hover:bg-red-500'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-lg">cancel</span>
+                  {currentCompletion?.status === 'skipped' ? 'Skipped' : 'Mark as Skipped'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCompletionHistory(!showCompletionHistory)
+                    if (!showCompletionHistory && selectedDayId) {
+                      fetchCompletionHistory(selectedDayId)
+                    }
+                  }}
+                  className="flex items-center gap-2 rounded-lg bg-dark-700 px-4 py-2.5 text-sm text-dark-300 hover:bg-dark-600 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-lg">history</span>
+                  History
+                </button>
+              </div>
+            ) : showStatusForm ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-lg ${showStatusForm === 'done' ? 'text-green-400' : 'text-red-400'}`}>
+                    {showStatusForm === 'done' ? 'check_circle' : 'cancel'}
+                  </span>
+                  <p className="text-sm font-medium text-dark-200">
+                    Mark as {showStatusForm === 'done' ? 'Done' : 'Skipped'}
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-dark-300">
+                    Notes (optional)
+                  </label>
+                  <textarea
+                    value={statusNotes}
+                    onChange={(e) => setStatusNotes(e.target.value)}
+                    rows={2}
+                    placeholder={showStatusForm === 'done' ? 'How was the session?' : 'Why did you skip?'}
+                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-200 placeholder-dark-500 focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleSetStatus(showStatusForm)}
+                    disabled={savingStatus}
+                    className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50 ${
+                      showStatusForm === 'done' ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500'
+                    }`}
+                  >
+                    {savingStatus ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    ) : (
+                      <span className="material-symbols-outlined text-lg">
+                        {showStatusForm === 'done' ? 'check_circle' : 'cancel'}
+                      </span>
+                    )}
+                    Confirm {showStatusForm === 'done' ? 'Done' : 'Skipped'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowStatusForm(null)
+                      setStatusNotes('')
+                    }}
+                    className="rounded-lg bg-dark-700 px-4 py-2.5 text-sm text-dark-300 hover:bg-dark-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
+              /* Original complete form */
               <div className="space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-dark-300">
@@ -356,6 +543,43 @@ export default function MyWorkouts() {
                     Cancel
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Completion History (collapsible) */}
+            {showCompletionHistory && (
+              <div className="mt-4 rounded-xl border border-dark-700 bg-dark-700/50 p-4">
+                <h3 className="text-sm font-semibold text-dark-200 mb-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base">history</span>
+                  Completion History
+                </h3>
+                {completionHistory.length === 0 ? (
+                  <p className="text-sm text-dark-400">No previous completions for this workout day.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {completionHistory.map((ch) => (
+                      <div key={ch.id} className="flex items-center justify-between rounded-lg bg-dark-800 px-4 py-2.5">
+                        <div className="flex items-center gap-3">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            ch.status === 'done'
+                              ? 'bg-green-500/10 text-green-400'
+                              : ch.status === 'skipped'
+                              ? 'bg-red-500/10 text-red-400'
+                              : 'bg-yellow-500/10 text-yellow-400'
+                          }`}>
+                            {ch.status}
+                          </span>
+                          {ch.client_notes && (
+                            <span className="text-sm text-dark-400">{ch.client_notes}</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-dark-500">
+                          {format(new Date(ch.completed_at || ch.created_at), 'MMM d, yyyy')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

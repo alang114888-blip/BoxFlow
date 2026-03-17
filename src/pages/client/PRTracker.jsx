@@ -7,6 +7,7 @@ import {
   InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import ProgressCharts from '../../components/ProgressCharts'
 
 export default function PRTracker() {
   const { profile } = useAuth()
@@ -138,6 +139,9 @@ export default function PRTracker() {
         <h1 className="text-2xl font-bold text-dark-100">PR Tracker</h1>
         <p className="mt-1 text-dark-400">Track your personal records</p>
       </div>
+
+      {/* Progress Charts */}
+      {profile?.id && <ProgressCharts clientId={profile.id} />}
 
       {/* Info Banner */}
       <div className="flex items-start gap-3 rounded-lg border border-primary-500/20 bg-primary-500/5 p-4">

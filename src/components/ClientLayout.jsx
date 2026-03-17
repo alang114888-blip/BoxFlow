@@ -9,8 +9,8 @@ const allTabs = [
   { to: '/client/workouts', label: 'My Workout', icon: 'fitness_center', show: ['fitness', 'both'] },
   { to: '/client/nutrition', label: 'My Nutrition', icon: 'restaurant', show: ['nutrition', 'both'] },
   { to: '/client/prs', label: 'PR Board', icon: 'trophy', show: ['fitness', 'both'] },
+  { to: '/client/checkin', label: 'Check-in', icon: 'fact_check', show: ['fitness', 'nutrition', 'both'] },
   { to: '/client/wod', label: 'WOD', icon: 'local_fire_department', show: ['both'] },
-  { to: '/client/calculator', label: 'Settings', icon: 'settings', show: ['fitness', 'nutrition', 'both'] },
 ]
 
 export default function ClientLayout() {

@@ -18,12 +18,15 @@ import Leaderboard from './pages/trainer/Leaderboard'
 import WOD from './pages/trainer/WOD'
 import Settings from './pages/trainer/Settings'
 import PRBoard from './pages/trainer/PRBoard'
+import Templates from './pages/trainer/Templates'
+import ClientHistory from './pages/trainer/ClientHistory'
 import ClientDashboard from './pages/client/ClientDashboard'
 import MyWorkouts from './pages/client/MyWorkouts'
 import MyNutrition from './pages/client/MyNutrition'
 import PRTracker from './pages/client/PRTracker'
 import PercentageCalculator from './pages/client/PercentageCalculator'
 import WODFeed from './pages/client/WODFeed'
+import WeeklyCheckIn from './pages/client/WeeklyCheckIn'
 import ClientLeaderboard from './pages/client/Leaderboard'
 import Onboarding from './pages/Onboarding'
 
@@ -34,7 +37,6 @@ function RoleRedirect() {
 
   if (!user || !profile) return <Navigate to="/login" replace />
 
-  // New users without phone → onboarding
   if (!profile.phone && profile.role !== 'super_admin') {
     return <Navigate to="/onboarding" replace />
   }
@@ -67,7 +69,7 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* Trainer Routes — mobile-first bottom nav layout */}
+      {/* Trainer Routes */}
       <Route element={<ProtectedRoute allowedRoles={['trainer']} />}>
         <Route element={<TrainerLayout />}>
           <Route path="/trainer" element={<TrainerDashboard />} />
@@ -78,6 +80,8 @@ export default function App() {
           <Route path="/trainer/leaderboard" element={<Leaderboard />} />
           <Route path="/trainer/wod" element={<WOD />} />
           <Route path="/trainer/pr-board" element={<PRBoard />} />
+          <Route path="/trainer/templates" element={<Templates />} />
+          <Route path="/trainer/client-history/:clientId" element={<ClientHistory />} />
           <Route path="/trainer/settings" element={<Settings />} />
         </Route>
       </Route>
@@ -91,8 +95,8 @@ export default function App() {
           <Route path="/client/prs" element={<PRTracker />} />
           <Route path="/client/calculator" element={<PercentageCalculator />} />
           <Route path="/client/wod" element={<WODFeed />} />
+          <Route path="/client/checkin" element={<WeeklyCheckIn />} />
         </Route>
-        {/* Leaderboard has its own full-screen layout */}
         <Route path="/client/leaderboard" element={<ClientLeaderboard />} />
       </Route>
 
