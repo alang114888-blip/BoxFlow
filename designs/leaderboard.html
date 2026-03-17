@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#8b5cf6",
+                        "accent": "#00f2ff",
+                        "background-light": "#ffffff",
+                        "background-dark": "#0a0514",
+                        "surface-dark": "#160d28",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>BoxFlow Pro Leaderboard</title>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+        .glow-rank-1 {
+            box-shadow: 0 0 20px rgba(234, 179, 8, 0.2);
+            background: linear-gradient(90deg, rgba(234, 179, 8, 0.05) 0%, transparent 100%);
+        }
+        .glow-primary {
+            box-shadow: inset 0 0 15px rgba(139, 92, 246, 0.2);
+        }
+        .neon-border {
+            border-bottom: 2px solid #8b5cf6;
+            filter: drop-shadow(0 0 4px #8b5cf6);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="relative flex h-screen w-full flex-col overflow-hidden max-w-md mx-auto border-x border-slate-200 dark:border-slate-800 shadow-2xl">
+<!-- Top Navigation Bar -->
+<div class="flex items-center bg-background-light dark:bg-background-dark p-4 pb-2 justify-between">
+<div class="text-slate-900 dark:text-slate-400 flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-base font-extrabold uppercase tracking-[0.2em] flex-1 text-center">Leaderboard</h2>
+<div class="flex w-10 items-center justify-end">
+<button class="flex cursor-pointer items-center justify-center rounded-full size-10 bg-transparent text-slate-900 dark:text-slate-400 hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined">share</span>
+</button>
+</div>
+</div>
+<!-- Header Content -->
+<div class="px-6 py-6 bg-background-light dark:bg-background-dark">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="h-1 w-8 bg-primary rounded-full"></span>
+<p class="text-primary text-[10px] font-black uppercase tracking-[0.15em]">Crossfit Elite Series</p>
+</div>
+<h2 class="text-slate-900 dark:text-white text-3xl font-black leading-tight tracking-tight mt-1">WOD: FRAN <span class="text-primary font-light text-xl">OCT 24</span></h2>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-slate-400 text-sm">timer</span>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wide">21-15-9 Thrusters &amp; Pull-ups</p>
+</div>
+</div>
+</div>
+<!-- Category Tabs -->
+<div class="px-4 pb-2 bg-background-light dark:bg-background-dark">
+<div class="flex bg-slate-100 dark:bg-surface-dark p-1 rounded-xl gap-1">
+<a class="flex-1 flex items-center justify-center bg-white dark:bg-primary text-slate-900 dark:text-white py-2 rounded-lg shadow-sm" href="#">
+<p class="text-xs font-black tracking-widest uppercase">RX</p>
+</a>
+<a class="flex-1 flex items-center justify-center text-slate-500 dark:text-slate-500 py-2 rounded-lg hover:text-slate-900 dark:hover:text-slate-300 transition-colors" href="#">
+<p class="text-xs font-black tracking-widest uppercase">Scaled</p>
+</a>
+<a class="flex-1 flex items-center justify-center text-slate-500 dark:text-slate-500 py-2 rounded-lg hover:text-slate-900 dark:hover:text-slate-300 transition-colors" href="#">
+<p class="text-xs font-black tracking-widest uppercase">Masters</p>
+</a>
+</div>
+</div>
+<!-- Ranking Table Header -->
+<div class="flex items-center px-6 py-4 bg-transparent text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 border-b border-slate-100 dark:border-slate-800/50">
+<div class="w-10">#</div>
+<div class="flex-1 ml-4">Athlete</div>
+<div class="w-16 text-right">Time</div>
+</div>
+<!-- Leaderboard List -->
+<div class="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark custom-scrollbar">
+<!-- Rank 1 -->
+<div class="flex items-center gap-4 px-6 py-4 border-b border-slate-100 dark:border-slate-800/50 glow-rank-1">
+<div class="w-6 flex justify-center">
+<span class="text-yellow-500 font-black text-lg italic">1</span>
+</div>
+<div class="flex items-center gap-4 flex-1">
+<div class="relative">
+<div class="absolute -inset-1 bg-yellow-500/20 rounded-full blur-sm"></div>
+<div class="relative bg-center bg-no-repeat aspect-square bg-cover rounded-full h-11 w-11 border-2 border-yellow-500/50" data-alt="Profile picture of athlete 1" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC32WyOEA-PrWzUkde_iEzCdJsZIFV-diVngSNmY_5HPTDc-ZLzMnsbbRykpSQsP8uaGQZ-bOqRzUv7CIU2rzWk3qQpz1dCoo6Zs385mycJgGDHw_PJaWgYdEb3VP4255j9gf3PCr-gWME9SktnoFGsktNkPKUzdOTVHbkFTWWqCtQk4mtdRaXpjnYKUJrQx3bC4Xwaaad92TJi8X8uGuQ5PYEtS9Unawfv5QY49quOtegQANmLTluFkGohKW_CdlbbTURBSm8OPI0");'></div>
+<div class="absolute -bottom-1 -right-1 bg-yellow-500 text-[8px] text-background-dark font-black px-1 rounded-sm">MVP</div>
+</div>
+<div class="flex flex-col">
+<p class="text-slate-900 dark:text-white text-sm font-bold tracking-tight">MIKE ROSS</p>
+<p class="text-slate-400 text-[10px] font-medium uppercase">Brooklyn Box</p>
+</div>
+</div>
+<div class="shrink-0">
+<p class="text-slate-900 dark:text-white text-base font-black italic">2:15</p>
+</div>
+</div>
+<!-- Rank 2 -->
+<div class="flex items-center gap-4 px-6 py-4 border-b border-slate-100 dark:border-slate-800/50">
+<div class="w-6 flex justify-center">
+<span class="text-slate-400 dark:text-slate-500 font-black text-lg italic">2</span>
+</div>
+<div class="flex items-center gap-4 flex-1">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-10 w-10 border border-slate-200 dark:border-slate-800" data-alt="Profile picture of athlete 2" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCJLRXAO3xvQsb6Q_ClFzhCCid4iYQ77y09sJ8Fd7UCI0bi2FrdRmqKeSIZMy1i8ecabzTTYX0ySFTrUzP9o90w5Q9OpLu3mGcUscGNwUeaSs0jE5jIQxRi3WeJQtAEi0FXEf_3sgE-UEGZhkSY2IO4gmLq2Qc1dnoSgjQIqvlIkvDFSkCUycMJkme1dQNeVbctKXQzLmYy9dyHjFlufFYeP1An9i9eCqQ3PuWb7BOeMbKgxdop0JIg1jo3rNefcqEj19SP46SNOT8");'></div>
+<div class="flex flex-col">
+<p class="text-slate-900 dark:text-white text-sm font-bold tracking-tight">SARAH JENKINS</p>
+<p class="text-slate-400 text-[10px] font-medium uppercase">Jersey City Fit</p>
+</div>
+</div>
+<div class="shrink-0">
+<p class="text-slate-900 dark:text-white text-base font-black italic">2:38</p>
+</div>
+</div>
+<!-- Rank 3 - YOU (Highlighted / Gaming Style) -->
+<div class="mx-3 my-2 flex items-center gap-4 px-4 py-5 bg-gradient-to-r from-primary to-primary/40 dark:from-primary/30 dark:to-transparent rounded-2xl border-l-4 border-primary glow-primary relative overflow-hidden">
+<div class="absolute right-0 top-0 h-full w-24 bg-primary/10 -skew-x-12 translate-x-12"></div>
+<div class="w-6 flex justify-center relative z-10">
+<span class="text-white dark:text-primary font-black text-xl italic">3</span>
+</div>
+<div class="flex items-center gap-4 flex-1 relative z-10">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-12 w-12 border-2 border-white dark:border-primary shadow-lg ring-4 ring-primary/20" data-alt="Your profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCFi4B4eiuC6RxGiABTCzJbXhq91h1uF26T6F6s7CvGunp4pceBNtQxxLw00rQ3BhWdYQbaLIm3UPp5rjx9IKXcpd1A3PTU4AwFP19XFYO2JXowXowOk-AJaJruzCi3Zazg-WlF6pynnVXSbkdCkKMA79aNps-UG_pGaI72KUuudMTsn9wtWaUNewNXRBAG9D_0kibnGCWEVO2qee7RZuVKW9pVlqHWfXbIOgjdmUsOI6plMZXsBFHwGApPfj16NAjnIHdRMHg9GV0");'></div>
+<div class="flex flex-col">
+<p class="text-white text-base font-black italic tracking-wider">YOU</p>
+<p class="text-white/80 dark:text-primary text-[10px] font-bold uppercase tracking-widest">Personal Best 🔥</p>
+</div>
+</div>
+<div class="shrink-0 relative z-10">
+<p class="text-white text-lg font-black italic">2:45</p>
+</div>
+</div>
+<!-- Rank 4 -->
+<div class="flex items-center gap-4 px-6 py-4 border-b border-slate-100 dark:border-slate-800/50">
+<div class="w-6 flex justify-center">
+<span class="text-slate-400 dark:text-slate-500 font-black text-lg italic">4</span>
+</div>
+<div class="flex items-center gap-4 flex-1">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-10 w-10 border border-slate-200 dark:border-slate-800" data-alt="Profile picture of athlete 4" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB9-QSjNzjMxrxBoAdHV-rJr9BaHKO0TZ6P_Y208CI-8ezUR4Y_itYDFc5CwrKAslmJSZWp6Ehzf9usvIke73rUWhQQNyqq6GU15E6Ul0P3bRedjEdiB6bS2LM9vL6z-_h4Pa0mnRrMuHrOgSNX5_6wJ-wQIRx8CO41K3P9zlc7pAo3XAViUAct7TiDkH9AqPAJlrfSSLeTok2GV3Fz70EdLrGPIj9B5Nvo7DGBNv_aX6Vg1WFvkwKOCZtEEklYHT0fVbZkKKU_Gh4");'></div>
+<div class="flex flex-col">
+<p class="text-slate-900 dark:text-white text-sm font-bold tracking-tight">DAVID GOGGINS</p>
+<p class="text-slate-400 text-[10px] font-medium uppercase">Stay Hard HQ</p>
+</div>
+</div>
+<div class="shrink-0">
+<p class="text-slate-900 dark:text-white text-base font-black italic">2:52</p>
+</div>
+</div>
+<!-- Rank 5 -->
+<div class="flex items-center gap-4 px-6 py-4 border-b border-slate-100 dark:border-slate-800/50">
+<div class="w-6 flex justify-center">
+<span class="text-slate-400 dark:text-slate-500 font-black text-lg italic">5</span>
+</div>
+<div class="flex items-center gap-4 flex-1">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-10 w-10 border border-slate-200 dark:border-slate-800" data-alt="Profile picture of athlete 5" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAHhcDjHiZ6nd5_WZvXwUiO0PKLJ1Ppix4oeNuOj8ZFCuiOphc002fd_P3gtk1MuecucNK9Det9dY9DFsKlf8_Hm_y9_J1WmtZFdBGQq0SKWNZnknh-6evLNdbPp5CBjU6RZSAT89rnFNUyPJSbENkUoKxRlM-jSsghrnAwT_QZ0bHH_mBbIfqdxfPES62bm0Bj5tixGxXuq8lbWq8hmIr37hd7OTtyEmGI2Qg_5Y6JtjMNwmCx4ebjWvjB2vEOb2hhOuecyvnFMLA");'></div>
+<div class="flex flex-col">
+<p class="text-slate-900 dark:text-white text-sm font-bold tracking-tight">LINDA CARTER</p>
+<p class="text-slate-400 text-[10px] font-medium uppercase">Brooklyn Box</p>
+</div>
+</div>
+<div class="shrink-0">
+<p class="text-slate-900 dark:text-white text-base font-black italic">3:05</p>
+</div>
+</div>
+</div>
+<!-- Bottom Navigation Bar -->
+<div class="flex gap-2 border-t border-slate-200 dark:border-slate-800/50 bg-background-light dark:bg-surface-dark px-4 pb-8 pt-3">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-all duration-300" href="#">
+<span class="material-symbols-outlined text-2xl">fitness_center</span>
+<p class="text-[9px] font-black uppercase tracking-widest">WOD</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-primary relative group" href="#">
+<div class="absolute -top-1 w-8 h-1 bg-primary rounded-full neon-border"></div>
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1">leaderboard</span>
+<p class="text-[9px] font-black uppercase tracking-widest">Ranks</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-all duration-300" href="#">
+<span class="material-symbols-outlined text-2xl">insights</span>
+<p class="text-[9px] font-black uppercase tracking-widest">Stats</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-all duration-300" href="#">
+<span class="material-symbols-outlined text-2xl">person_filled</span>
+<p class="text-[9px] font-black uppercase tracking-widest">You</p>
+</a>
+</div>
+</div>
+</body></html>

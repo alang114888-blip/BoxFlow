@@ -1,15 +1,4 @@
 import { useEffect, useState } from 'react'
-import {
-  UserGroupIcon,
-  UsersIcon,
-  ClipboardDocumentListIcon,
-  PlusIcon,
-  XMarkIcon,
-  ArrowPathIcon,
-  EyeIcon,
-  TrashIcon,
-  KeyIcon,
-} from '@heroicons/react/24/outline'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -58,9 +47,14 @@ export default function AdminDashboard() {
   const [myPasswordError, setMyPasswordError] = useState(null)
   const [myPasswordSuccess, setMyPasswordSuccess] = useState(false)
 
+  // Recent activity
+  const [recentActivity, setRecentActivity] = useState([])
+  const [loadingActivity, setLoadingActivity] = useState(true)
+
   useEffect(() => {
     fetchStats()
     fetchTrainers()
+    fetchRecentActivity()
   }, [])
 
   async function fetchStats() {
@@ -93,7 +87,6 @@ export default function AdminDashboard() {
     setError(null)
 
     try {
-      // Fetch trainers with their trainer_profiles joined
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select(`
@@ -112,7 +105,6 @@ export default function AdminDashboard() {
 
       if (fetchError) throw fetchError
 
-      // For each trainer, get their client count
       const trainersWithCounts = await Promise.all(
         (data || []).map(async (trainer) => {
           const { count } = await supabase
@@ -135,6 +127,66 @@ export default function AdminDashboard() {
     }
   }
 
+  async function fetchRecentActivity() {
+    setLoadingActivity(true)
+    try {
+      const [clientJoins, workoutLogs] = await Promise.all([
+        supabase
+          .from('trainer_clients')
+          .select(`
+            id,
+            created_at,
+            client:profiles!trainer_clients_client_id_fkey ( full_name, email ),
+            trainer:profiles!trainer_clients_trainer_id_fkey ( full_name )
+          `)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('workout_logs')
+          .select(`
+            id,
+            created_at,
+            profiles ( full_name, email )
+          `)
+          .order('created_at', { ascending: false })
+          .limit(5),
+      ])
+
+      const activities = []
+
+      if (clientJoins.data) {
+        clientJoins.data.forEach((j) => {
+          activities.push({
+            id: `join-${j.id}`,
+            type: 'join',
+            name: j.client?.full_name || j.client?.email || 'Unknown',
+            detail: `Joined ${j.trainer?.full_name || 'a trainer'}`,
+            time: j.created_at,
+          })
+        })
+      }
+
+      if (workoutLogs.data) {
+        workoutLogs.data.forEach((w) => {
+          activities.push({
+            id: `log-${w.id}`,
+            type: 'workout',
+            name: w.profiles?.full_name || w.profiles?.email || 'Unknown',
+            detail: 'Completed a workout',
+            time: w.created_at,
+          })
+        })
+      }
+
+      activities.sort((a, b) => new Date(b.time) - new Date(a.time))
+      setRecentActivity(activities.slice(0, 8))
+    } catch (err) {
+      console.error('Error fetching activity:', err.message)
+    } finally {
+      setLoadingActivity(false)
+    }
+  }
+
   async function handleInviteTrainer(e) {
     e.preventDefault()
     setInviteError(null)
@@ -144,7 +196,6 @@ export default function AdminDashboard() {
     try {
       const siteUrl = window.location.origin
 
-      // Send magic link invite with role metadata
       const { error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
         inviteEmail,
         {
@@ -158,7 +209,6 @@ export default function AdminDashboard() {
       )
 
       if (inviteErr) {
-        // Fallback: if admin API isn't available, use signInWithOtp
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email: inviteEmail,
           options: {
@@ -177,7 +227,6 @@ export default function AdminDashboard() {
       setInviteEmail('')
       setInviteName('')
       setTrainerType('fitness')
-      // Refresh trainers list after a short delay
       setTimeout(() => {
         fetchStats()
         fetchTrainers()
@@ -295,228 +344,169 @@ export default function AdminDashboard() {
     }
   }
 
+  function timeAgo(dateStr) {
+    if (!dateStr) return ''
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'Just now'
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    const days = Math.floor(hrs / 24)
+    return `${days}d ago`
+  }
+
   const statCards = [
     {
       label: 'Total Trainers',
       value: totalTrainers,
-      icon: UserGroupIcon,
-      color: 'text-primary-400',
-      bg: 'bg-primary-900/30',
+      icon: 'groups',
+      gradient: 'from-primary to-purple-600',
+      badge: '+12%',
+      badgeColor: 'text-emerald-400',
     },
     {
-      label: 'Total Clients',
+      label: 'Active Members',
       value: totalClients,
-      icon: UsersIcon,
-      color: 'text-green-400',
-      bg: 'bg-green-900/30',
+      icon: 'person',
+      gradient: 'from-emerald-500 to-teal-600',
+      badge: '+8%',
+      badgeColor: 'text-emerald-400',
     },
     {
       label: 'Active Workout Plans',
       value: activeWorkoutPlans,
-      icon: ClipboardDocumentListIcon,
-      color: 'text-amber-400',
-      bg: 'bg-amber-900/30',
+      icon: 'exercise',
+      gradient: 'from-amber-500 to-orange-600',
+      badge: '+5%',
+      badgeColor: 'text-emerald-400',
     },
   ]
 
   return (
     <div>
       {/* Header */}
-      <header className="border-b border-dark-700 bg-dark-800">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-dark-100">
-              Admin Dashboard
-            </h1>
-            <p className="text-sm text-dark-400 mt-0.5">
-              Manage trainers, clients, and platform settings
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => { setShowChangeMyPassword(true); setMyPasswordError(null); setMyPasswordSuccess(false); setMyNewPassword(''); setMyConfirmPassword('') }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
-            >
-              <KeyIcon className="h-4 w-4" />
-              Change Password
-            </button>
-            <button
-              onClick={signOut}
-              className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
-            >
-              Sign Out
-            </button>
-          </div>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">
+            Workspace <span className="text-primary-light">Intelligence</span>
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Monitor your platform performance and team activity
+          </p>
         </div>
-      </header>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setShowChangeMyPassword(true)
+              setMyPasswordError(null)
+              setMyPasswordSuccess(false)
+              setMyNewPassword('')
+              setMyConfirmPassword('')
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl glass-card text-sm text-slate-300 hover:text-white transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">lock</span>
+            Change Password
+          </button>
+        </div>
+      </div>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {statCards.map((stat) => (
-            <div
-              key={stat.label}
-              className="bg-dark-800 border border-dark-700 rounded-xl p-5 flex items-center gap-4"
-            >
-              <div className={`${stat.bg} rounded-lg p-3`}>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        {statCards.map((stat) => (
+          <div
+            key={stat.label}
+            className="glass-card rounded-2xl p-6 relative overflow-hidden group hover:border-primary/30 transition-all duration-300"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br opacity-10 rounded-full -translate-y-8 translate-x-8 group-hover:opacity-20 transition-opacity" />
+            <div className="flex items-start justify-between mb-4">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
+                <span className="material-symbols-outlined text-white text-xl">{stat.icon}</span>
               </div>
-              <div>
-                <p className="text-sm text-dark-400">{stat.label}</p>
-                <p className="text-2xl font-bold text-dark-100">
-                  {stat.value}
-                </p>
-              </div>
+              <span className={`text-xs font-medium ${stat.badgeColor} bg-emerald-500/10 px-2 py-1 rounded-full`}>
+                {stat.badge}
+              </span>
             </div>
-          ))}
-        </div>
-
-        {/* Trainers Section */}
-        <div className="bg-dark-800 border border-dark-700 rounded-xl">
-          <div className="px-5 py-4 border-b border-dark-700 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-dark-100">Trainers</h2>
-            <button
-              onClick={() => {
-                setShowAddTrainer(true)
-                setInviteSuccess(false)
-                setInviteError(null)
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-primary-700 transition"
-            >
-              <PlusIcon className="h-4 w-4" />
-              Add Trainer
-            </button>
+            <p className="text-3xl font-bold text-white mb-1">{stat.value}</p>
+            <p className="text-sm text-slate-400">{stat.label}</p>
           </div>
+        ))}
+      </div>
 
-          {error && (
-            <div className="mx-5 mt-4 rounded-lg bg-red-900/30 border border-red-700/50 p-3">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
-          )}
-
-          {loadingTrainers ? (
-            <div className="flex items-center justify-center py-12">
-              <ArrowPathIcon className="h-6 w-6 text-primary-500 animate-spin" />
-            </div>
-          ) : trainers.length === 0 ? (
-            <div className="text-center py-12">
-              <UserGroupIcon className="mx-auto h-10 w-10 text-dark-500" />
-              <p className="mt-2 text-dark-400 text-sm">
-                No trainers found. Add your first trainer to get started.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-dark-700">
-                    <th className="px-5 py-3 text-xs font-medium text-dark-400 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-5 py-3 text-xs font-medium text-dark-400 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-5 py-3 text-xs font-medium text-dark-400 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-5 py-3 text-xs font-medium text-dark-400 uppercase tracking-wider">
-                      Clients
-                    </th>
-                    <th className="px-5 py-3 text-xs font-medium text-dark-400 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-dark-700">
-                  {trainers.map((trainer) => (
-                    <tr
-                      key={trainer.id}
-                      className="hover:bg-dark-700/50 transition"
-                    >
-                      <td className="px-5 py-3 text-sm text-dark-100 font-medium">
-                        {trainer.full_name || 'Unnamed'}
-                      </td>
-                      <td className="px-5 py-3 text-sm text-dark-300">
-                        {trainer.email}
-                      </td>
-                      <td className="px-5 py-3 text-sm">
-                        <span className="inline-flex items-center rounded-full bg-primary-900/30 px-2.5 py-0.5 text-xs font-medium text-primary-300 capitalize">
-                          {trainer.trainer_profiles?.[0]?.trainer_type || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-sm text-dark-200">
-                        {trainer.clientCount}
-                      </td>
-                      <td className="px-5 py-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleViewClients(trainer)}
-                            className="inline-flex items-center gap-1 rounded-md bg-dark-700 px-2.5 py-1.5 text-xs text-dark-200 hover:bg-dark-600 transition"
-                            title="View clients"
-                          >
-                            <EyeIcon className="h-3.5 w-3.5" />
-                            Clients
-                          </button>
-                          <select
-                            value={trainer.role}
-                            onChange={(e) =>
-                              handleChangeRole(trainer.id, e.target.value)
-                            }
-                            className="rounded-md border border-dark-600 bg-dark-700 px-2 py-1.5 text-xs text-dark-200 focus:border-primary-500 focus:outline-none"
-                          >
-                            <option value="trainer">Trainer</option>
-                            <option value="client">Client</option>
-                            <option value="super_admin">Admin</option>
-                          </select>
-                          <button
-                            onClick={() => { setPasswordTrainer(trainer); setNewPassword(''); setPasswordSuccess(false) }}
-                            className="inline-flex items-center gap-1 rounded-md bg-dark-700 px-2.5 py-1.5 text-xs text-dark-200 hover:bg-dark-600 transition"
-                            title="Set password"
-                          >
-                            <KeyIcon className="h-3.5 w-3.5" />
-                            Password
-                          </button>
-                          <button
-                            onClick={() => setTrainerToDelete(trainer)}
-                            className="inline-flex items-center gap-1 rounded-md bg-red-900/30 px-2.5 py-1.5 text-xs text-red-400 hover:bg-red-900/50 transition"
-                            title="Delete trainer"
-                          >
-                            <TrashIcon className="h-3.5 w-3.5" />
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+      {/* Recent Activity */}
+      <div className="glass-card rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
+          <button
+            onClick={fetchRecentActivity}
+            className="text-xs text-slate-400 hover:text-primary-light transition-colors flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined text-[16px]">refresh</span>
+            Refresh
+          </button>
         </div>
-      </main>
+
+        {loadingActivity ? (
+          <div className="flex items-center justify-center py-12">
+            <span className="material-symbols-outlined text-primary animate-spin text-3xl">progress_activity</span>
+          </div>
+        ) : recentActivity.length === 0 ? (
+          <div className="text-center py-12">
+            <span className="material-symbols-outlined text-slate-600 text-4xl mb-2">inbox</span>
+            <p className="text-slate-500 text-sm">No recent activity yet</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recentActivity.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/[0.03] transition-colors"
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white ${
+                  item.type === 'join'
+                    ? 'bg-gradient-to-br from-emerald-500 to-teal-600'
+                    : 'bg-gradient-to-br from-primary to-purple-600'
+                }`}>
+                  {item.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white font-medium truncate">{item.name}</p>
+                  <p className="text-xs text-slate-400 truncate">{item.detail}</p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  item.type === 'join'
+                    ? 'text-emerald-400 bg-emerald-500/10'
+                    : 'text-primary-light bg-primary/10'
+                }`}>
+                  {item.type === 'join' ? 'New Client' : 'Workout'}
+                </span>
+                <span className="text-xs text-slate-500 whitespace-nowrap">{timeAgo(item.time)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ============ MODALS ============ */}
 
       {/* Add Trainer Modal */}
       {showAddTrainer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-md bg-dark-800 border border-dark-700 rounded-xl shadow-xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700">
-              <h3 className="text-lg font-semibold text-dark-100">
-                Add Trainer
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md glass-card rounded-2xl shadow-2xl shadow-primary/10">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-glass-border">
+              <h3 className="text-lg font-semibold text-white">Add Trainer</h3>
               <button
                 onClick={() => setShowAddTrainer(false)}
-                className="rounded-lg p-1 text-dark-400 hover:text-dark-200 hover:bg-dark-700 transition"
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
               >
-                <XMarkIcon className="h-5 w-5" />
+                <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleInviteTrainer} className="p-5 space-y-4">
+            <form onSubmit={handleInviteTrainer} className="p-6 space-y-4">
               <div>
-                <label
-                  htmlFor="trainer-name"
-                  className="block text-sm font-medium text-dark-200 mb-1.5"
-                >
+                <label htmlFor="trainer-name" className="block text-sm font-medium text-slate-300 mb-1.5">
                   Full Name
                 </label>
                 <input
@@ -527,15 +517,12 @@ export default function AdminDashboard() {
                   onChange={(e) => setInviteName(e.target.value)}
                   placeholder="John Doe"
                   disabled={inviting}
-                  className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none transition disabled:opacity-50"
+                  className="block w-full rounded-xl bg-white/5 border border-glass-border px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary/40 focus:outline-none transition disabled:opacity-50"
                 />
               </div>
 
               <div>
-                <label
-                  htmlFor="trainer-email"
-                  className="block text-sm font-medium text-dark-200 mb-1.5"
-                >
+                <label htmlFor="trainer-email" className="block text-sm font-medium text-slate-300 mb-1.5">
                   Email Address
                 </label>
                 <input
@@ -546,15 +533,12 @@ export default function AdminDashboard() {
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="trainer@example.com"
                   disabled={inviting}
-                  className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none transition disabled:opacity-50"
+                  className="block w-full rounded-xl bg-white/5 border border-glass-border px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary/40 focus:outline-none transition disabled:opacity-50"
                 />
               </div>
 
               <div>
-                <label
-                  htmlFor="trainer-type"
-                  className="block text-sm font-medium text-dark-200 mb-1.5"
-                >
+                <label htmlFor="trainer-type" className="block text-sm font-medium text-slate-300 mb-1.5">
                   Trainer Type
                 </label>
                 <select
@@ -562,7 +546,7 @@ export default function AdminDashboard() {
                   value={trainerType}
                   onChange={(e) => setTrainerType(e.target.value)}
                   disabled={inviting}
-                  className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none transition disabled:opacity-50"
+                  className="block w-full rounded-xl bg-white/5 border border-glass-border px-4 py-2.5 text-sm text-white focus:border-primary/40 focus:outline-none transition disabled:opacity-50"
                 >
                   <option value="fitness">Personal Trainer</option>
                   <option value="nutrition">Nutritionist</option>
@@ -571,16 +555,15 @@ export default function AdminDashboard() {
               </div>
 
               {inviteError && (
-                <div className="rounded-lg bg-red-900/30 border border-red-700/50 p-3">
+                <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3">
                   <p className="text-sm text-red-400">{inviteError}</p>
                 </div>
               )}
 
               {inviteSuccess && (
-                <div className="rounded-lg bg-green-900/30 border border-green-700/50 p-3">
-                  <p className="text-sm text-green-400">
-                    Invite sent successfully! The trainer will receive a magic
-                    link to set up their account.
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3">
+                  <p className="text-sm text-emerald-400">
+                    Invite sent successfully! The trainer will receive a magic link to set up their account.
                   </p>
                 </div>
               )}
@@ -589,18 +572,18 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setShowAddTrainer(false)}
-                  className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
+                  className="px-4 py-2 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-white/5 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={inviting}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white hover:shadow-lg hover:shadow-primary/25 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {inviting ? (
                     <>
-                      <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                      <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
                       Sending...
                     </>
                   ) : (
@@ -615,52 +598,41 @@ export default function AdminDashboard() {
 
       {/* View Clients Modal */}
       {selectedTrainer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-lg bg-dark-800 border border-dark-700 rounded-xl shadow-xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700">
-              <h3 className="text-lg font-semibold text-dark-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg glass-card rounded-2xl shadow-2xl shadow-primary/10">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-glass-border">
+              <h3 className="text-lg font-semibold text-white">
                 Clients of{' '}
-                <span className="text-primary-400">
-                  {selectedTrainer.full_name || 'Unnamed'}
-                </span>
+                <span className="text-primary-light">{selectedTrainer.full_name || 'Unnamed'}</span>
               </h3>
               <button
-                onClick={() => {
-                  setSelectedTrainer(null)
-                  setTrainerClients([])
-                }}
-                className="rounded-lg p-1 text-dark-400 hover:text-dark-200 hover:bg-dark-700 transition"
+                onClick={() => { setSelectedTrainer(null); setTrainerClients([]) }}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
               >
-                <XMarkIcon className="h-5 w-5" />
+                <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            <div className="p-5">
+            <div className="p-6">
               {loadingClients ? (
                 <div className="flex items-center justify-center py-8">
-                  <ArrowPathIcon className="h-6 w-6 text-primary-500 animate-spin" />
+                  <span className="material-symbols-outlined text-primary animate-spin text-3xl">progress_activity</span>
                 </div>
               ) : trainerClients.length === 0 ? (
                 <div className="text-center py-8">
-                  <UsersIcon className="mx-auto h-8 w-8 text-dark-500" />
-                  <p className="mt-2 text-dark-400 text-sm">
-                    This trainer has no clients yet.
-                  </p>
+                  <span className="material-symbols-outlined text-slate-600 text-4xl">person_off</span>
+                  <p className="mt-2 text-slate-500 text-sm">This trainer has no clients yet.</p>
                 </div>
               ) : (
-                <ul className="divide-y divide-dark-700">
+                <ul className="space-y-2">
                   {trainerClients.map((tc) => (
-                    <li
-                      key={tc.id}
-                      className="flex items-center justify-between py-3"
-                    >
+                    <li key={tc.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-xs font-semibold text-white">
+                        {(tc.client?.full_name || 'U').charAt(0).toUpperCase()}
+                      </div>
                       <div>
-                        <p className="text-sm font-medium text-dark-100">
-                          {tc.client?.full_name || 'Unnamed'}
-                        </p>
-                        <p className="text-xs text-dark-400">
-                          {tc.client?.email}
-                        </p>
+                        <p className="text-sm font-medium text-white">{tc.client?.full_name || 'Unnamed'}</p>
+                        <p className="text-xs text-slate-400">{tc.client?.email}</p>
                       </div>
                     </li>
                   ))}
@@ -668,13 +640,10 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            <div className="px-5 py-3 border-t border-dark-700 flex justify-end">
+            <div className="px-6 py-4 border-t border-glass-border flex justify-end">
               <button
-                onClick={() => {
-                  setSelectedTrainer(null)
-                  setTrainerClients([])
-                }}
-                className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
+                onClick={() => { setSelectedTrainer(null); setTrainerClients([]) }}
+                className="px-4 py-2 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-white/5 transition"
               >
                 Close
               </button>
@@ -685,37 +654,40 @@ export default function AdminDashboard() {
 
       {/* Delete Confirmation Modal */}
       {trainerToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm bg-dark-800 border border-dark-700 rounded-xl shadow-xl p-6">
-            <h3 className="text-lg font-semibold text-dark-100 mb-2">
-              Delete Trainer
-            </h3>
-            <p className="text-sm text-dark-300 mb-1">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm glass-card rounded-2xl shadow-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                <span className="material-symbols-outlined text-red-400 text-xl">warning</span>
+              </div>
+              <h3 className="text-lg font-semibold text-white">Delete Trainer</h3>
+            </div>
+            <p className="text-sm text-slate-300 mb-1">
               Are you sure you want to delete{' '}
-              <span className="font-medium text-dark-100">
+              <span className="font-medium text-white">
                 {trainerToDelete.full_name || trainerToDelete.email}
               </span>
               ?
             </p>
-            <p className="text-xs text-red-400 mb-5">
+            <p className="text-xs text-red-400/80 mb-6">
               This will remove their profile, client relationships, and all associated data. This action cannot be undone.
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setTrainerToDelete(null)}
                 disabled={deleting}
-                className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition disabled:opacity-50"
+                className="px-4 py-2 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-white/5 transition disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteTrainer}
                 disabled={deleting}
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 transition disabled:opacity-50"
               >
                 {deleting ? (
                   <>
-                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                    <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
                     Deleting...
                   </>
                 ) : (
@@ -729,14 +701,12 @@ export default function AdminDashboard() {
 
       {/* Set Password Modal */}
       {passwordTrainer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm bg-dark-800 border border-dark-700 rounded-xl shadow-xl p-6">
-            <h3 className="text-lg font-semibold text-dark-100 mb-1">
-              Set Password
-            </h3>
-            <p className="text-sm text-dark-400 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm glass-card rounded-2xl shadow-2xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-1">Set Password</h3>
+            <p className="text-sm text-slate-400 mb-5">
               Set a new password for{' '}
-              <span className="text-dark-100 font-medium">{passwordTrainer.full_name || passwordTrainer.email}</span>
+              <span className="text-white font-medium">{passwordTrainer.full_name || passwordTrainer.email}</span>
             </p>
             <form onSubmit={handleSetPassword} className="space-y-4">
               <input
@@ -746,23 +716,23 @@ export default function AdminDashboard() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="New password (min 6 chars)"
-                className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:outline-none"
+                className="block w-full rounded-xl bg-white/5 border border-glass-border px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary/40 focus:outline-none transition"
               />
               {passwordSuccess && (
-                <p className="text-sm text-green-400">Password updated successfully!</p>
+                <p className="text-sm text-emerald-400">Password updated successfully!</p>
               )}
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setPasswordTrainer(null)}
-                  className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
+                  className="px-4 py-2 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-white/5 transition"
                 >
                   Close
                 </button>
                 <button
                   type="submit"
                   disabled={settingPassword || !newPassword}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white hover:shadow-lg hover:shadow-primary/25 transition disabled:opacity-50"
                 >
                   {settingPassword ? 'Setting...' : 'Set Password'}
                 </button>
@@ -774,12 +744,12 @@ export default function AdminDashboard() {
 
       {/* Change My Password Modal */}
       {showChangeMyPassword && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm bg-dark-800 border border-dark-700 rounded-xl shadow-xl p-6">
-            <h3 className="text-lg font-semibold text-dark-100 mb-4">Change My Password</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm glass-card rounded-2xl shadow-2xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-5">Change My Password</h3>
             <form onSubmit={handleChangeMyPassword} className="space-y-4">
               <div>
-                <label className="block text-sm text-dark-300 mb-1">New Password</label>
+                <label className="block text-sm text-slate-300 mb-1.5">New Password</label>
                 <input
                   type="password"
                   required
@@ -787,11 +757,11 @@ export default function AdminDashboard() {
                   value={myNewPassword}
                   onChange={(e) => setMyNewPassword(e.target.value)}
                   placeholder="Min 6 characters"
-                  className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:outline-none"
+                  className="block w-full rounded-xl bg-white/5 border border-glass-border px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary/40 focus:outline-none transition"
                 />
               </div>
               <div>
-                <label className="block text-sm text-dark-300 mb-1">Confirm Password</label>
+                <label className="block text-sm text-slate-300 mb-1.5">Confirm Password</label>
                 <input
                   type="password"
                   required
@@ -799,27 +769,27 @@ export default function AdminDashboard() {
                   value={myConfirmPassword}
                   onChange={(e) => setMyConfirmPassword(e.target.value)}
                   placeholder="Re-enter password"
-                  className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:outline-none"
+                  className="block w-full rounded-xl bg-white/5 border border-glass-border px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary/40 focus:outline-none transition"
                 />
               </div>
               {myPasswordError && (
                 <p className="text-sm text-red-400">{myPasswordError}</p>
               )}
               {myPasswordSuccess && (
-                <p className="text-sm text-green-400">Password changed successfully!</p>
+                <p className="text-sm text-emerald-400">Password changed successfully!</p>
               )}
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowChangeMyPassword(false)}
-                  className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
+                  className="px-4 py-2 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-white/5 transition"
                 >
                   Close
                 </button>
                 <button
                   type="submit"
                   disabled={changingMyPassword || !myNewPassword || !myConfirmPassword}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white hover:shadow-lg hover:shadow-primary/25 transition disabled:opacity-50"
                 >
                   {changingMyPassword ? 'Changing...' : 'Change Password'}
                 </button>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { EnvelopeIcon, LockClosedIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../hooks/useAuth'
 
 export default function Auth() {
@@ -14,8 +14,8 @@ export default function Auth() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-        <ArrowPathIcon className="h-8 w-8 text-primary-500 animate-spin" />
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <span className="material-symbols-outlined text-primary animate-spin text-4xl">progress_activity</span>
       </div>
     )
   }
@@ -74,15 +74,18 @@ export default function Auth() {
   }[mode]
 
   return (
-    <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4">
+    <div className="min-h-screen mesh-bg flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <div className="bg-dark-800 rounded-2xl shadow-xl border border-dark-700 p-8">
+        <div className="glass-card rounded-2xl shadow-2xl p-8">
           {/* Logo / Title */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-dark-100 tracking-tight">
-              Box<span className="text-primary-500">Flow</span>
+            <div className="mx-auto mb-4 w-14 h-14 bg-gradient-to-br from-primary to-primary-light rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30">
+              <span className="material-symbols-outlined text-white text-3xl">package_2</span>
+            </div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight">
+              Box<span className="text-primary">Flow</span>
             </h1>
-            <p className="mt-2 text-dark-400 text-sm">{subtitle}</p>
+            <p className="mt-2 text-slate-400 text-sm font-medium">{subtitle}</p>
           </div>
 
           {/* Form */}
@@ -103,7 +106,7 @@ export default function Auth() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   disabled={sending}
-                  className="block w-full rounded-lg border border-dark-600 bg-dark-700 py-2.5 pl-10 pr-3 text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none transition disabled:opacity-50"
+                  className="block w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-10 pr-3 text-white placeholder-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition disabled:opacity-50"
                 />
               </div>
             </div>
@@ -125,7 +128,7 @@ export default function Auth() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     disabled={sending}
-                    className="block w-full rounded-lg border border-dark-600 bg-dark-700 py-2.5 pl-10 pr-3 text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none transition disabled:opacity-50"
+                    className="block w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-10 pr-3 text-white placeholder-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -134,11 +137,11 @@ export default function Auth() {
             <button
               type="submit"
               disabled={sending || !email || (mode === 'password' && !password)}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary-light px-4 py-2.5 text-sm font-semibold text-white hover:shadow-lg hover:shadow-primary/30 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sending ? (
                 <>
-                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                  <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
                   {loadingLabel}
                 </>
               ) : (

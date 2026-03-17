@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BoxFlow - Trainer Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#7c3bed",
+                        "background-light": "#f7f6f8",
+                        "background-dark": "#0f0a19",
+                        "neutral-dark": "#1a1426",
+                        "neutral-accent": "#261c38",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1rem", "2xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header -->
+<header class="flex items-center justify-between p-5 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50">
+<div class="flex items-center gap-3">
+<div class="size-11 rounded-full p-0.5 bg-gradient-to-tr from-primary to-purple-400">
+<div class="w-full h-full rounded-full bg-cover bg-center border-2 border-background-dark" data-alt="Portrait of Coach Alex" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAWC1ZaQOyfxUxEfWmuDPw0mYnvhwl6I0l4T-KZ0lgYEBq9tIEjl4yJjKwrQ0KSCJwyHv3isarzRj7VUTJDfamexzCA2f3m_4R343F7n2ptvdHM2Btsh0x2q5qof2MH7yNNyJiu0SyfKiuwU6hmqeUIQL4Q3OIQ2efcwZiwCiREGtrtLB13u1yYnEAP35qa5QhgQTWW3Mdh59LOm-xCnU7l8c02XYBiwRTE_sbciPvJ3jGeBiuYp0xfinnGIntAGhuTjDUBGRF4zPg')"></div>
+</div>
+<div>
+<p class="text-[10px] font-bold text-primary uppercase tracking-widest leading-none mb-0.5">Premium Trainer</p>
+<h1 class="text-xl font-bold tracking-tight">BoxFlow</h1>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="size-10 rounded-full flex items-center justify-center bg-white dark:bg-neutral-dark border border-slate-200 dark:border-primary/20 relative">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-300">notifications</span>
+<span class="absolute top-2.5 right-2.5 size-2 bg-red-500 rounded-full border-2 border-background-dark"></span>
+</button>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto pb-32">
+<!-- Welcome Hero -->
+<section class="p-5">
+<div class="relative overflow-hidden bg-primary rounded-2xl p-6 text-white shadow-xl shadow-primary/20">
+<div class="relative z-10">
+<h2 class="text-2xl font-bold mb-1">Coach Alex,</h2>
+<p class="text-white/80 text-sm font-light">You have <span class="font-bold text-white">4 scheduled sessions</span> for today.</p>
+<button class="mt-4 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-lg text-xs font-semibold flex items-center gap-2 transition-all">
+                    View Schedule <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<!-- Decorative Elements -->
+<div class="absolute -right-10 -bottom-10 size-48 bg-white/10 rounded-full blur-3xl"></div>
+<div class="absolute -left-5 -top-5 size-32 bg-purple-400/20 rounded-full blur-2xl"></div>
+</div>
+</section>
+<!-- Stats Grid -->
+<section class="px-5 grid grid-cols-3 gap-3">
+<div class="bg-white dark:bg-neutral-dark rounded-2xl p-4 border border-slate-200 dark:border-primary/10 shadow-sm">
+<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Clients</p>
+<p class="text-2xl font-bold text-primary">25</p>
+</div>
+<div class="bg-white dark:bg-neutral-dark rounded-2xl p-4 border border-slate-200 dark:border-primary/10 shadow-sm">
+<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Workouts</p>
+<p class="text-2xl font-bold text-primary">18</p>
+</div>
+<div class="bg-white dark:bg-neutral-dark rounded-2xl p-4 border border-slate-200 dark:border-primary/10 shadow-sm">
+<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Activity</p>
+<p class="text-2xl font-bold text-primary">94%</p>
+</div>
+</section>
+<!-- Modern Quick Actions -->
+<section class="p-5 mt-2">
+<h3 class="text-sm font-bold mb-4 uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 flex items-center gap-2">
+            Quick Hub
+        </h3>
+<div class="grid grid-cols-2 gap-4">
+<button class="flex flex-col items-start gap-4 p-5 bg-white dark:bg-neutral-dark rounded-2xl border border-slate-200 dark:border-primary/10 hover:border-primary dark:hover:border-primary transition-all group aspect-square shadow-sm">
+<div class="size-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">person_add</span>
+</div>
+<div>
+<p class="font-bold text-lg leading-tight">New<br/>Client</p>
+</div>
+</button>
+<button class="flex flex-col items-start gap-4 p-5 bg-white dark:bg-neutral-dark rounded-2xl border border-slate-200 dark:border-primary/10 hover:border-primary dark:hover:border-primary transition-all group aspect-square shadow-sm">
+<div class="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">fitness_center</span>
+</div>
+<div>
+<p class="font-bold text-lg leading-tight">Create<br/>Workout</p>
+</div>
+</button>
+<button class="flex flex-col items-start gap-4 p-5 bg-white dark:bg-neutral-dark rounded-2xl border border-slate-200 dark:border-primary/10 hover:border-primary dark:hover:border-primary transition-all group aspect-square shadow-sm">
+<div class="size-12 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">restaurant</span>
+</div>
+<div>
+<p class="font-bold text-lg leading-tight">Meal<br/>Planner</p>
+</div>
+</button>
+<button class="flex flex-col items-start gap-4 p-5 bg-white dark:bg-neutral-dark rounded-2xl border border-slate-200 dark:border-primary/10 hover:border-primary dark:hover:border-primary transition-all group aspect-square shadow-sm">
+<div class="size-12 rounded-xl bg-green-500/10 text-green-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">analytics</span>
+</div>
+<div>
+<p class="font-bold text-lg leading-tight">Review<br/>Stats</p>
+</div>
+</button>
+</div>
+</section>
+<!-- Professional Activity Feed -->
+<section class="p-5">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-sm font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Recent Activity</h3>
+<button class="text-xs font-bold text-primary">See All</button>
+</div>
+<div class="relative space-y-6 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200 dark:before:bg-neutral-accent">
+<!-- Feed Item 1 -->
+<div class="relative flex gap-4 pl-10">
+<div class="absolute left-0 size-10 rounded-full bg-white dark:bg-neutral-dark border border-slate-200 dark:border-primary/20 flex items-center justify-center z-10 shadow-sm">
+<span class="material-symbols-outlined text-primary text-xl">check_circle</span>
+</div>
+<div class="flex-1 bg-white dark:bg-neutral-dark p-4 rounded-xl border border-slate-200 dark:border-primary/10 shadow-sm">
+<div class="flex justify-between items-start mb-1">
+<p class="text-sm font-bold">Workout Completed</p>
+<span class="text-[10px] text-slate-500 uppercase">15m ago</span>
+</div>
+<p class="text-sm text-slate-600 dark:text-slate-400">
+<span class="font-semibold text-slate-900 dark:text-white">John Doe</span> finished <span class="text-primary">Hypertrophy Ph.1</span>
+</p>
+</div>
+</div>
+<!-- Feed Item 2 -->
+<div class="relative flex gap-4 pl-10">
+<div class="absolute left-0 size-10 rounded-full bg-white dark:bg-neutral-dark border border-slate-200 dark:border-primary/20 flex items-center justify-center z-10 shadow-sm">
+<span class="material-symbols-outlined text-green-500 text-xl">person_add_alt</span>
+</div>
+<div class="flex-1 bg-white dark:bg-neutral-dark p-4 rounded-xl border border-slate-200 dark:border-primary/10 shadow-sm">
+<div class="flex justify-between items-start mb-1">
+<p class="text-sm font-bold">New Enrollment</p>
+<span class="text-[10px] text-slate-500 uppercase">2h ago</span>
+</div>
+<p class="text-sm text-slate-600 dark:text-slate-400">
+<span class="font-semibold text-slate-900 dark:text-white">Sarah Miller</span> joined your roster via invitation.
+                    </p>
+</div>
+</div>
+<!-- Feed Item 3 -->
+<div class="relative flex gap-4 pl-10">
+<div class="absolute left-0 size-10 rounded-full bg-white dark:bg-neutral-dark border border-slate-200 dark:border-primary/20 flex items-center justify-center z-10 shadow-sm">
+<span class="material-symbols-outlined text-orange-500 text-xl">chat_bubble</span>
+</div>
+<div class="flex-1 bg-white dark:bg-neutral-dark p-4 rounded-xl border border-slate-200 dark:border-primary/10 shadow-sm">
+<div class="flex justify-between items-start mb-1">
+<p class="text-sm font-bold">New Message</p>
+<span class="text-[10px] text-slate-500 uppercase">4h ago</span>
+</div>
+<p class="text-sm text-slate-600 dark:text-slate-400">
+<span class="font-semibold text-slate-900 dark:text-white">Marcus Chen</span> sent a video for form review.
+                    </p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 right-0 border-t border-slate-200 dark:border-neutral-accent bg-white/95 dark:bg-neutral-dark/95 backdrop-blur-xl px-6 pb-8 pt-3 z-50">
+<div class="flex justify-between items-center max-w-lg mx-auto">
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="text-primary p-1 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined fill-current" style="font-variation-settings: 'FILL' 1">home</span>
+</div>
+<span class="text-[10px] font-bold text-primary uppercase tracking-tighter">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="text-slate-400 dark:text-slate-500 group-hover:text-primary p-1 transition-colors">
+<span class="material-symbols-outlined">group</span>
+</div>
+<span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-primary uppercase tracking-tighter transition-colors">Clients</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="text-slate-400 dark:text-slate-500 group-hover:text-primary p-1 transition-colors">
+<span class="material-symbols-outlined">exercise</span>
+</div>
+<span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-primary uppercase tracking-tighter transition-colors">Workouts</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="text-slate-400 dark:text-slate-500 group-hover:text-primary p-1 transition-colors">
+<span class="material-symbols-outlined">restaurant_menu</span>
+</div>
+<span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-primary uppercase tracking-tighter transition-colors">Nutrition</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="text-slate-400 dark:text-slate-500 group-hover:text-primary p-1 transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</div>
+<span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-primary uppercase tracking-tighter transition-colors">Settings</span>
+</a>
+</div>
+</nav>
+</body></html>

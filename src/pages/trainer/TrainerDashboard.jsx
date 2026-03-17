@@ -2,18 +2,10 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import {
-  UserGroupIcon,
-  ClipboardDocumentListIcon,
-  BookOpenIcon,
-  FireIcon,
-  CakeIcon,
-  TrophyIcon,
-} from '@heroicons/react/24/outline'
 
 export default function TrainerDashboard() {
   const { profile } = useAuth()
-  const [stats, setStats] = useState({ clients: 0, activePlans: 0, exercises: 0, wods: 0 })
+  const [stats, setStats] = useState({ clients: 0, workouts: 0, activity: 0 })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,24 +15,22 @@ export default function TrainerDashboard() {
 
   async function fetchStats() {
     try {
-      const [clientsRes, wpRes, npRes, exRes, wodRes] = await Promise.all([
-        supabase.from('trainer_clients').select('id', { count: 'exact', head: true })
-          .eq('trainer_id', profile.id).eq('invite_accepted', true),
-        supabase.from('workout_plans').select('id', { count: 'exact', head: true })
-          .eq('trainer_id', profile.id).eq('is_active', true),
-        supabase.from('nutrition_plans').select('id', { count: 'exact', head: true })
-          .eq('trainer_id', profile.id).eq('is_active', true),
-        supabase.from('exercises').select('id', { count: 'exact', head: true })
-          .eq('trainer_id', profile.id),
-        supabase.from('wods').select('id', { count: 'exact', head: true })
+      const [clientsRes, workoutsRes] = await Promise.all([
+        supabase
+          .from('trainer_clients')
+          .select('id', { count: 'exact', head: true })
+          .eq('trainer_id', profile.id)
+          .eq('invite_accepted', true),
+        supabase
+          .from('workout_plans')
+          .select('id', { count: 'exact', head: true })
           .eq('trainer_id', profile.id),
       ])
-      setStats({
-        clients: clientsRes.count || 0,
-        activePlans: (wpRes.count || 0) + (npRes.count || 0),
-        exercises: exRes.count || 0,
-        wods: wodRes.count || 0,
-      })
+      const clientCount = clientsRes.count || 0
+      const workoutCount = workoutsRes.count || 0
+      // Activity % is a derived metric - based on active plans ratio
+      const activity = clientCount > 0 ? Math.min(Math.round((workoutCount / clientCount) * 100), 100) : 0
+      setStats({ clients: clientCount, workouts: workoutCount, activity })
     } catch (err) {
       console.error('Stats error:', err)
     } finally {
@@ -51,66 +41,65 @@ export default function TrainerDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-dark-600 border-t-primary-500" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-dark-600 border-t-primary" />
       </div>
     )
   }
 
+  const firstName = profile?.full_name?.split(' ')[0] || 'Coach'
+
   const statCards = [
-    { label: 'Clients', value: stats.clients, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Active Plans', value: stats.activePlans, icon: ClipboardDocumentListIcon, color: 'text-green-400', bg: 'bg-green-500/10' },
-    { label: 'Exercises', value: stats.exercises, icon: BookOpenIcon, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    { label: 'WODs', value: stats.wods, icon: FireIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+    { label: 'Clients', value: stats.clients },
+    { label: 'Workouts', value: stats.workouts },
+    { label: 'Activity', value: `${stats.activity}%` },
   ]
 
   const quickActions = [
-    { label: 'Add Client', to: '/trainer/clients', icon: UserGroupIcon, desc: 'Invite a new client' },
-    { label: 'Create Workout', to: '/trainer/workouts', icon: ClipboardDocumentListIcon, desc: 'Build a workout plan' },
-    { label: 'Publish WOD', to: '/trainer/wod', icon: FireIcon, desc: 'Post workout of the day' },
-    { label: 'Meal Plan', to: '/trainer/nutrition', icon: CakeIcon, desc: 'Design a nutrition plan' },
-    { label: 'Exercises', to: '/trainer/settings', icon: BookOpenIcon, desc: 'Manage exercise library' },
-    { label: 'Leaderboard', to: '/trainer/leaderboard', icon: TrophyIcon, desc: 'View client scores' },
+    { label: 'New Client', to: '/trainer/clients', icon: 'person_add', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Create Workout', to: '/trainer/workouts', icon: 'fitness_center', color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Meal Planner', to: '/trainer/nutrition', icon: 'restaurant', color: 'text-orange-400', bg: 'bg-orange-500/10' },
+    { label: 'Review Stats', to: '/trainer/leaderboard', icon: 'analytics', color: 'text-green-400', bg: 'bg-green-500/10' },
   ]
 
   return (
     <div>
-      {/* Greeting */}
-      <div className="mb-5">
-        <h2 className="text-xl font-bold text-dark-100">
-          Hey, {profile?.full_name?.split(' ')[0] || 'Coach'}
-        </h2>
-        <p className="text-sm text-dark-400">Here's your overview</p>
+      {/* Welcome Hero */}
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-dark p-5">
+        {/* Decorative circles */}
+        <div className="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-white/10" />
+        <div className="absolute -bottom-4 -left-4 h-16 w-16 rounded-full bg-white/5" />
+        <div className="relative">
+          <p className="text-sm text-white/70">Welcome back,</p>
+          <h2 className="text-xl font-bold text-white">Coach {firstName},</h2>
+          <p className="mt-1 text-sm text-white/60">
+            {stats.clients} active client{stats.clients !== 1 ? 's' : ''} &middot; {stats.workouts} workout{stats.workouts !== 1 ? 's' : ''}
+          </p>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="mb-6 grid grid-cols-2 gap-3">
+      {/* Stats Grid - 3 columns */}
+      <div className="mb-5 grid grid-cols-3 gap-3">
         {statCards.map((s) => (
-          <div key={s.label} className="flex items-center gap-3 rounded-xl border border-dark-700 bg-dark-800 p-4">
-            <div className={`rounded-lg p-2 ${s.bg}`}>
-              <s.icon className={`h-5 w-5 ${s.color}`} />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-dark-100">{s.value}</p>
-              <p className="text-xs text-dark-400">{s.label}</p>
-            </div>
+          <div key={s.label} className="rounded-2xl bg-[#1a1426] border border-primary/10 p-3 text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-dark-400">{s.label}</p>
+            <p className="mt-1 text-2xl font-bold text-primary">{s.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <h3 className="mb-3 text-sm font-semibold text-dark-300 uppercase tracking-wider">Quick Actions</h3>
+      {/* Quick Hub - 2x2 grid */}
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-dark-400">Quick Hub</h3>
       <div className="grid grid-cols-2 gap-3">
         {quickActions.map((a) => (
           <Link
             key={a.label}
             to={a.to}
-            className="flex items-center gap-3 rounded-xl border border-dark-700 bg-dark-800 p-4 transition-colors hover:border-primary-500/40 hover:bg-dark-700 active:scale-[0.98]"
+            className="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border border-primary/10 bg-[#1a1426] transition-colors hover:border-primary/30 active:scale-[0.97]"
           >
-            <a.icon className="h-5 w-5 text-primary-400 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-dark-100 truncate">{a.label}</p>
-              <p className="text-[11px] text-dark-400 truncate">{a.desc}</p>
+            <div className={`rounded-xl p-3 ${a.bg}`}>
+              <span className={`material-symbols-outlined text-[28px] ${a.color}`}>{a.icon}</span>
             </div>
+            <span className="text-xs font-medium text-dark-200">{a.label}</span>
           </Link>
         ))}
       </div>

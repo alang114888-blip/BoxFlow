@@ -2,10 +2,13 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
+import ClientLayout from './components/ClientLayout'
 import TrainerLayout from './components/TrainerLayout'
 import LoadingSpinner from './components/LoadingSpinner'
 import Auth from './pages/Auth'
+import AdminLayout from './components/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminTrainers from './pages/admin/AdminTrainers'
 import TrainerDashboard from './pages/trainer/TrainerDashboard'
 import ClientManagement from './pages/trainer/ClientManagement'
 import ExerciseLibrary from './pages/trainer/ExerciseLibrary'
@@ -20,6 +23,7 @@ import MyNutrition from './pages/client/MyNutrition'
 import PRTracker from './pages/client/PRTracker'
 import PercentageCalculator from './pages/client/PercentageCalculator'
 import WODFeed from './pages/client/WODFeed'
+import ClientLeaderboard from './pages/client/Leaderboard'
 
 function RoleRedirect() {
   const { profile, loading } = useAuth()
@@ -49,8 +53,9 @@ export default function App() {
 
       {/* Admin Routes */}
       <Route element={<ProtectedRoute allowedRoles={['super_admin']} />}>
-        <Route element={<Layout />}>
+        <Route element={<AdminLayout />}>
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/trainers" element={<AdminTrainers />} />
         </Route>
       </Route>
 
@@ -70,7 +75,7 @@ export default function App() {
 
       {/* Client Routes */}
       <Route element={<ProtectedRoute allowedRoles={['client']} />}>
-        <Route element={<Layout />}>
+        <Route element={<ClientLayout />}>
           <Route path="/client" element={<ClientDashboard />} />
           <Route path="/client/workouts" element={<MyWorkouts />} />
           <Route path="/client/nutrition" element={<MyNutrition />} />
@@ -78,6 +83,8 @@ export default function App() {
           <Route path="/client/calculator" element={<PercentageCalculator />} />
           <Route path="/client/wod" element={<WODFeed />} />
         </Route>
+        {/* Leaderboard has its own full-screen layout */}
+        <Route path="/client/leaderboard" element={<ClientLeaderboard />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
