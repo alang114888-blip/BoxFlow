@@ -4,10 +4,10 @@ import { EnvelopeIcon, LockClosedIcon, ArrowPathIcon } from '@heroicons/react/24
 import { useAuth } from '../hooks/useAuth'
 
 export default function Auth() {
-  const { user, profile, loading: authLoading, signIn, signInWithPassword } = useAuth()
+  const { user, profile, loading: authLoading, signIn, signInWithPassword, resetPassword } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [mode, setMode] = useState('password') // 'password' or 'magic'
+  const [mode, setMode] = useState('password') // 'password' | 'magic' | 'forgot'
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
@@ -33,7 +33,10 @@ export default function Auth() {
     setSending(true)
 
     try {
-      if (mode === 'magic') {
+      if (mode === 'forgot') {
+        await resetPassword(email)
+        setSuccess(true)
+      } else if (mode === 'magic') {
         await signIn(email)
         setSuccess(true)
         setEmail('')
@@ -47,6 +50,29 @@ export default function Auth() {
     }
   }
 
+  const subtitle = {
+    password: 'Sign in with your password',
+    magic: 'Sign in with magic link',
+    forgot: 'Reset your password',
+  }[mode]
+
+  const buttonLabel = {
+    password: 'Sign In',
+    magic: 'Send Magic Link',
+    forgot: 'Send Reset Link',
+  }[mode]
+
+  const loadingLabel = {
+    password: 'Signing in...',
+    magic: 'Sending...',
+    forgot: 'Sending...',
+  }[mode]
+
+  const successMsg = {
+    magic: 'Check your email for the login link!',
+    forgot: 'Password reset email sent! Check your inbox.',
+  }[mode]
+
   return (
     <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -56,9 +82,7 @@ export default function Auth() {
             <h1 className="text-3xl font-bold text-dark-100 tracking-tight">
               Box<span className="text-primary-500">Flow</span>
             </h1>
-            <p className="mt-2 text-dark-400 text-sm">
-              {mode === 'password' ? 'Sign in with your password' : 'Sign in with magic link'}
-            </p>
+            <p className="mt-2 text-dark-400 text-sm">{subtitle}</p>
           </div>
 
           {/* Form */}
@@ -115,16 +139,25 @@ export default function Auth() {
               {sending ? (
                 <>
                   <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                  {mode === 'password' ? 'Signing in...' : 'Sending...'}
+                  {loadingLabel}
                 </>
               ) : (
-                mode === 'password' ? 'Sign In' : 'Send Magic Link'
+                buttonLabel
               )}
             </button>
           </form>
 
-          {/* Toggle mode */}
-          <div className="mt-5 text-center">
+          {/* Links */}
+          <div className="mt-5 flex flex-col items-center gap-2">
+            {mode === 'password' && (
+              <button
+                type="button"
+                onClick={() => { setMode('forgot'); setError(null); setSuccess(false) }}
+                className="text-sm text-dark-400 hover:text-dark-200 transition"
+              >
+                Forgot password?
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -136,14 +169,21 @@ export default function Auth() {
             >
               {mode === 'password' ? 'Use magic link instead' : 'Use password instead'}
             </button>
+            {mode === 'forgot' && (
+              <button
+                type="button"
+                onClick={() => { setMode('password'); setError(null); setSuccess(false) }}
+                className="text-sm text-primary-400 hover:text-primary-300 transition"
+              >
+                Back to sign in
+              </button>
+            )}
           </div>
 
           {/* Success message */}
-          {success && (
+          {success && successMsg && (
             <div className="mt-4 rounded-lg bg-green-900/30 border border-green-700/50 p-3 text-center">
-              <p className="text-sm text-green-400">
-                Check your email for the login link!
-              </p>
+              <p className="text-sm text-green-400">{successMsg}</p>
             </div>
           )}
 

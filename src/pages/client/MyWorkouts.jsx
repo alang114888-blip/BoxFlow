@@ -11,6 +11,28 @@ import { format } from 'date-fns'
 
 const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
+const SECTION_ORDER = ['warmup', 'strength', 'cardio', 'metcon', 'other']
+
+const SECTION_META = {
+  warmup:   { label: 'Warmup',   color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' },
+  strength: { label: 'Strength', color: 'bg-red-500/15 text-red-400 border-red-500/30' },
+  cardio:   { label: 'Cardio',   color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+  metcon:   { label: 'Metcon',   color: 'bg-green-500/15 text-green-400 border-green-500/30' },
+  other:    { label: 'Other',    color: 'bg-gray-500/15 text-gray-400 border-gray-500/30' },
+}
+
+function groupBySection(exercises) {
+  const groups = []
+  for (const sec of SECTION_ORDER) {
+    const items = exercises.filter((we) => (we.section || 'other') === sec)
+    if (items.length > 0) {
+      items.sort((a, b) => (a.section_order ?? a.order_index) - (b.section_order ?? b.order_index))
+      groups.push({ section: sec, meta: SECTION_META[sec], items })
+    }
+  }
+  return groups
+}
+
 export default function MyWorkouts() {
   const { profile } = useAuth()
   const [loading, setLoading] = useState(true)
@@ -41,6 +63,7 @@ export default function MyWorkouts() {
               id, day_of_week, session_number, name,
               workout_exercises (
                 id, order_index, sets, reps, percentage_of_pr, manual_weight_kg, notes,
+                section, section_order,
                 exercises ( id, name, category, is_pr_eligible )
               )
             )
@@ -139,9 +162,10 @@ export default function MyWorkouts() {
   }
 
   const selectedDay = workoutDays.find((d) => d.id === selectedDayId)
-  const exercises = selectedDay?.workout_exercises
-    ? [...selectedDay.workout_exercises].sort((a, b) => a.order_index - b.order_index)
+  const allExercises = selectedDay?.workout_exercises
+    ? [...selectedDay.workout_exercises]
     : []
+  const sectionGroups = groupBySection(allExercises)
 
   if (loading) {
     return (
@@ -203,7 +227,7 @@ export default function MyWorkouts() {
         ))}
       </div>
 
-      {/* Exercise Table */}
+      {/* Exercise Table grouped by section */}
       {selectedDay && (
         <div className="rounded-lg border border-dark-700 bg-dark-800">
           <div className="border-b border-dark-700 px-5 py-3">
@@ -215,37 +239,52 @@ export default function MyWorkouts() {
             )}
           </div>
 
-          {exercises.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-dark-700 text-dark-400">
-                    <th className="px-5 py-3 font-medium">Exercise</th>
-                    <th className="px-5 py-3 font-medium">Sets</th>
-                    <th className="px-5 py-3 font-medium">Reps</th>
-                    <th className="px-5 py-3 font-medium">Weight (kg)</th>
-                    <th className="px-5 py-3 font-medium">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {exercises.map((we) => (
-                    <tr key={we.id} className="border-b border-dark-700/50 last:border-0">
-                      <td className="px-5 py-3 font-medium text-dark-200">
-                        {we.exercises?.name || 'Unknown'}
-                        <span className="ml-2 text-xs text-dark-500">
-                          {we.exercises?.category}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-dark-300">{we.sets}</td>
-                      <td className="px-5 py-3 text-dark-300">{we.reps}</td>
-                      <td className="px-5 py-3 font-medium text-primary-400">
-                        {calculateWeight(we)}
-                      </td>
-                      <td className="px-5 py-3 text-dark-500">{we.notes || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {sectionGroups.length > 0 ? (
+            <div className="divide-y divide-dark-700">
+              {sectionGroups.map(({ section, meta, items }) => (
+                <div key={section}>
+                  {/* Section Badge */}
+                  <div className="px-5 pt-4 pb-2">
+                    <span
+                      className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${meta.color}`}
+                    >
+                      {meta.label}
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-dark-700 text-dark-400">
+                          <th className="px-5 py-2 font-medium">Exercise</th>
+                          <th className="px-5 py-2 font-medium">Sets</th>
+                          <th className="px-5 py-2 font-medium">Reps</th>
+                          <th className="px-5 py-2 font-medium">Weight (kg)</th>
+                          <th className="px-5 py-2 font-medium">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((we) => (
+                          <tr key={we.id} className="border-b border-dark-700/50 last:border-0">
+                            <td className="px-5 py-3 font-medium text-dark-200">
+                              {we.exercises?.name || 'Unknown'}
+                              <span className="ml-2 text-xs text-dark-500">
+                                {we.exercises?.category}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3 text-dark-300">{we.sets}</td>
+                            <td className="px-5 py-3 text-dark-300">{we.reps}</td>
+                            <td className="px-5 py-3 font-medium text-primary-400">
+                              {calculateWeight(we)}
+                            </td>
+                            <td className="px-5 py-3 text-dark-500">{we.notes || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="p-5 text-center text-dark-400">
@@ -294,7 +333,7 @@ export default function MyWorkouts() {
                     onChange={(e) => setCompleteNotes(e.target.value)}
                     rows={2}
                     placeholder="How was the session? Any observations..."
-                    className="w-full rounded-lg border border-dark-600 bg-dark-900 px-3 py-2 text-sm text-dark-200 placeholder-dark-500 focus:border-primary-500 focus:outline-none"
+                    className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-200 placeholder-dark-500 focus:border-primary-500 focus:outline-none"
                   />
                 </div>
                 <div className="flex gap-3">
@@ -343,7 +382,7 @@ export default function MyWorkouts() {
                 {logs.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-center justify-between rounded-md border border-dark-700 bg-dark-900 px-4 py-3"
+                    className="flex items-center justify-between rounded-md border border-dark-700 bg-dark-700 px-4 py-3"
                   >
                     <div>
                       <p className="font-medium text-dark-200">

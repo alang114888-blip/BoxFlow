@@ -13,11 +13,13 @@ const NAV_LINKS = {
     { to: '/trainer/exercises', label: 'Exercises' },
     { to: '/trainer/workouts', label: 'Workouts' },
     { to: '/trainer/nutrition', label: 'Nutrition' },
+    { to: '/trainer/wod', label: 'WOD' },
     { to: '/trainer/leaderboard', label: 'Leaderboard' },
   ],
   client: [
     { to: '/client', label: 'Dashboard' },
     { to: '/client/workouts', label: 'Workouts' },
+    { to: '/client/wod', label: 'WOD' },
     { to: '/client/nutrition', label: 'Nutrition' },
     { to: '/client/prs', label: 'PRs' },
     { to: '/client/calculator', label: 'Calculator' },

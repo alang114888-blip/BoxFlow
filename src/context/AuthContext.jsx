@@ -84,6 +84,13 @@ export function AuthProvider({ children }) {
     // onAuthStateChange SIGNED_IN will call loadUser
   }
 
+  async function resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://box-flow-eight.vercel.app',
+    })
+    if (error) throw error
+  }
+
   async function signOut() {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
@@ -92,7 +99,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithPassword, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithPassword, resetPassword, signOut }}>
       {children}
     </AuthContext.Provider>
   )

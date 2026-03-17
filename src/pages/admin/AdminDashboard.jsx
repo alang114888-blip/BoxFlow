@@ -8,6 +8,7 @@ import {
   ArrowPathIcon,
   EyeIcon,
   TrashIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -42,6 +43,12 @@ export default function AdminDashboard() {
   // Delete trainer
   const [trainerToDelete, setTrainerToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Set password
+  const [passwordTrainer, setPasswordTrainer] = useState(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [settingPassword, setSettingPassword] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
 
   useEffect(() => {
     fetchStats()
@@ -236,6 +243,24 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleSetPassword(e) {
+    e.preventDefault()
+    if (!passwordTrainer || !newPassword) return
+    setSettingPassword(true)
+    setPasswordSuccess(false)
+    try {
+      const { error: rpcError } = await supabase
+        .rpc('set_user_password', { target_user_id: passwordTrainer.id, new_password: newPassword })
+      if (rpcError) throw rpcError
+      setPasswordSuccess(true)
+      setNewPassword('')
+    } catch (err) {
+      setError(err.message || 'Failed to set password')
+    } finally {
+      setSettingPassword(false)
+    }
+  }
+
   const statCards = [
     {
       label: 'Total Trainers',
@@ -400,6 +425,14 @@ export default function AdminDashboard() {
                             <option value="client">Client</option>
                             <option value="super_admin">Admin</option>
                           </select>
+                          <button
+                            onClick={() => { setPasswordTrainer(trainer); setNewPassword(''); setPasswordSuccess(false) }}
+                            className="inline-flex items-center gap-1 rounded-md bg-dark-700 px-2.5 py-1.5 text-xs text-dark-200 hover:bg-dark-600 transition"
+                            title="Set password"
+                          >
+                            <KeyIcon className="h-3.5 w-3.5" />
+                            Password
+                          </button>
                           <button
                             onClick={() => setTrainerToDelete(trainer)}
                             className="inline-flex items-center gap-1 rounded-md bg-red-900/30 px-2.5 py-1.5 text-xs text-red-400 hover:bg-red-900/50 transition"
@@ -647,6 +680,51 @@ export default function AdminDashboard() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Set Password Modal */}
+      {passwordTrainer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm bg-dark-800 border border-dark-700 rounded-xl shadow-xl p-6">
+            <h3 className="text-lg font-semibold text-dark-100 mb-1">
+              Set Password
+            </h3>
+            <p className="text-sm text-dark-400 mb-4">
+              Set a new password for{' '}
+              <span className="text-dark-100 font-medium">{passwordTrainer.full_name || passwordTrainer.email}</span>
+            </p>
+            <form onSubmit={handleSetPassword} className="space-y-4">
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New password (min 6 chars)"
+                className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:outline-none"
+              />
+              {passwordSuccess && (
+                <p className="text-sm text-green-400">Password updated successfully!</p>
+              )}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPasswordTrainer(null)}
+                  className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={settingPassword || !newPassword}
+                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition disabled:opacity-50"
+                >
+                  {settingPassword ? 'Setting...' : 'Set Password'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

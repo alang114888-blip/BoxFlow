@@ -11,11 +11,13 @@ import ExerciseLibrary from './pages/trainer/ExerciseLibrary'
 import WorkoutPlanBuilder from './pages/trainer/WorkoutPlanBuilder'
 import NutritionPlanBuilder from './pages/trainer/NutritionPlanBuilder'
 import Leaderboard from './pages/trainer/Leaderboard'
+import WOD from './pages/trainer/WOD'
 import ClientDashboard from './pages/client/ClientDashboard'
 import MyWorkouts from './pages/client/MyWorkouts'
 import MyNutrition from './pages/client/MyNutrition'
 import PRTracker from './pages/client/PRTracker'
 import PercentageCalculator from './pages/client/PercentageCalculator'
+import WODFeed from './pages/client/WODFeed'
 
 function RoleRedirect() {
   const { profile, loading } = useAuth()
@@ -59,6 +61,7 @@ export default function App() {
           <Route path="/trainer/workouts" element={<WorkoutPlanBuilder />} />
           <Route path="/trainer/nutrition" element={<NutritionPlanBuilder />} />
           <Route path="/trainer/leaderboard" element={<Leaderboard />} />
+          <Route path="/trainer/wod" element={<WOD />} />
         </Route>
       </Route>
 
@@ -70,6 +73,7 @@ export default function App() {
           <Route path="/client/nutrition" element={<MyNutrition />} />
           <Route path="/client/prs" element={<PRTracker />} />
           <Route path="/client/calculator" element={<PercentageCalculator />} />
+          <Route path="/client/wod" element={<WODFeed />} />
         </Route>
       </Route>
 

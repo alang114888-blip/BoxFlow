@@ -8,8 +8,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   UserPlusIcon,
-  ClipboardDocumentListIcon,
-  CakeIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline'
 
 export default function ClientManagement() {
@@ -31,6 +30,12 @@ export default function ClientManagement() {
   const [showAssignModal, setShowAssignModal] = useState(null) // { clientId, type: 'workout' | 'nutrition' }
   const [availablePlans, setAvailablePlans] = useState([])
   const [assigningPlan, setAssigningPlan] = useState(false)
+
+  // Set password
+  const [passwordClient, setPasswordClient] = useState(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [settingPassword, setSettingPassword] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
 
   useEffect(() => {
     if (!profile) return
@@ -246,6 +251,24 @@ export default function ClientManagement() {
     }
   }
 
+  async function handleSetClientPassword(e) {
+    e.preventDefault()
+    if (!passwordClient || !newPassword) return
+    setSettingPassword(true)
+    setPasswordSuccess(false)
+    try {
+      const { error: rpcError } = await supabase
+        .rpc('set_user_password', { target_user_id: passwordClient.id, new_password: newPassword })
+      if (rpcError) throw rpcError
+      setPasswordSuccess(true)
+      setNewPassword('')
+    } catch (err) {
+      setError(err.message || 'Failed to set password')
+    } finally {
+      setSettingPassword(false)
+    }
+  }
+
   const filteredClients = clients.filter((c) => {
     const name = c.profiles?.full_name || c.invited_email || ''
     const email = c.profiles?.email || c.invited_email || ''
@@ -393,6 +416,17 @@ export default function ClientManagement() {
                       </div>
                     ) : (
                       <div className="space-y-6">
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setPasswordClient({ id: client.client_id, name: clientName, email: clientEmail }); setNewPassword(''); setPasswordSuccess(false) }}
+                            className="inline-flex items-center gap-1 rounded-md bg-dark-700 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-600 transition"
+                          >
+                            <KeyIcon className="h-3.5 w-3.5" />
+                            Set Password
+                          </button>
+                        </div>
+
                         {/* PRs Table */}
                         <div>
                           <h3 className="mb-2 text-sm font-semibold text-dark-200">
@@ -582,6 +616,42 @@ export default function ClientManagement() {
               >
                 {inviting ? 'Sending...' : 'Send Invite'}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Set Password Modal */}
+      {passwordClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-dark-700 bg-dark-800 p-6">
+            <h3 className="text-lg font-semibold text-dark-100 mb-1">Set Password</h3>
+            <p className="text-sm text-dark-400 mb-4">
+              Set password for <span className="text-dark-100 font-medium">{passwordClient.name || passwordClient.email}</span>
+            </p>
+            <form onSubmit={handleSetClientPassword} className="space-y-4">
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New password (min 6 chars)"
+                className="block w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2.5 text-sm text-dark-100 placeholder-dark-400 focus:border-primary-500 focus:outline-none"
+              />
+              {passwordSuccess && (
+                <p className="text-sm text-green-400">Password updated successfully!</p>
+              )}
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setPasswordClient(null)}
+                  className="rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-dark-200 hover:bg-dark-600 transition">
+                  Close
+                </button>
+                <button type="submit" disabled={settingPassword || !newPassword}
+                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition disabled:opacity-50">
+                  {settingPassword ? 'Setting...' : 'Set Password'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
