@@ -79,6 +79,14 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
+  async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: SITE_URL },
+    })
+    if (error) throw error
+  }
+
   async function signInWithPassword(email, password) {
     // Check if locked
     const { data: lockCheck } = await supabase.rpc('check_account_locked', { user_email: email })
@@ -142,7 +150,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithPassword, changePassword, resetPassword, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithGoogle, signInWithPassword, changePassword, resetPassword, signOut }}>
       {children}
     </AuthContext.Provider>
   )
