@@ -788,10 +788,19 @@ export default function WorkoutPlanBuilder() {
                                     )}
                                   </td>
                                   <td className="py-2 pr-2">
-                                    {isPrEligible && calculatedWeight ? (
-                                      <span className="text-sm font-medium text-primary-400">
-                                        {calculatedWeight} kg
-                                      </span>
+                                    {isPrEligible ? (
+                                      calculatedWeight != null ? (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-sm font-bold text-primary-400">
+                                            {calculatedWeight}
+                                          </span>
+                                          <span className="text-[10px] text-dark-400">kg</span>
+                                        </div>
+                                      ) : we.percentage_of_pr && selectedClient ? (
+                                        <span className="text-[10px] text-amber-400">No PR set</span>
+                                      ) : (
+                                        <span className="text-xs text-dark-500">—</span>
+                                      )
                                     ) : (
                                       <input
                                         type="number"
