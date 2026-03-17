@@ -160,7 +160,7 @@ export default function AdminTrainers() {
             full_name: inviteName,
             trainer_type: trainerType,
           },
-          redirectTo: siteUrl,
+          redirectTo: siteUrl + '/onboarding',
         }
       )
 
@@ -173,7 +173,7 @@ export default function AdminTrainers() {
               full_name: inviteName,
               trainer_type: trainerType,
             },
-            emailRedirectTo: siteUrl,
+            emailRedirectTo: siteUrl + '/onboarding',
           },
         })
         if (otpError) throw otpError

@@ -129,7 +129,7 @@ export function AuthProvider({ children }) {
       throw new Error('Account locked — contact your trainer or admin to unlock.')
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: SITE_URL,
+      redirectTo: SITE_URL + '/reset-password',
     })
     if (error) throw error
   }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, SITE_URL } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import {
   MagnifyingGlassIcon,
@@ -148,6 +148,7 @@ export default function ClientManagement() {
         options: {
           data: { invited_by_trainer: profile.id },
           shouldCreateUser: true,
+          emailRedirectTo: SITE_URL + '/onboarding',
         },
       })
 

@@ -30,6 +30,7 @@ import WODFeed from './pages/client/WODFeed'
 import WeeklyCheckIn from './pages/client/WeeklyCheckIn'
 import ClientLeaderboard from './pages/client/Leaderboard'
 import Onboarding from './pages/Onboarding'
+import ResetPassword from './pages/ResetPassword'
 
 function RoleRedirect() {
   const { user, profile, loading } = useAuth()
@@ -60,6 +61,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Auth />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route path="/" element={<RoleRedirect />} />
 
