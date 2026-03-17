@@ -37,7 +37,8 @@ function RoleRedirect() {
 
   if (!user || !profile) return <Navigate to="/login" replace />
 
-  if (!profile.phone && profile.role !== 'super_admin') {
+  // Only show onboarding for non-admin users who haven't completed it
+  if (!profile.is_onboarded && profile.role !== 'super_admin') {
     return <Navigate to="/onboarding" replace />
   }
 

@@ -23,8 +23,8 @@ export default function Onboarding() {
 
   if (!user) return <Navigate to="/login" replace />
 
-  // If profile already has phone and password set, skip onboarding
-  if (profile?.phone) {
+  // Skip onboarding for admins or already-onboarded users
+  if (profile?.role === 'super_admin' || profile?.is_onboarded) {
     if (profile.role === 'super_admin') return <Navigate to="/admin" replace />
     if (profile.role === 'trainer') return <Navigate to="/trainer" replace />
     return <Navigate to="/client" replace />
@@ -57,10 +57,10 @@ export default function Onboarding() {
       // Set password (with history check)
       await changePassword(password)
 
-      // Save phone to profile
+      // Save phone and mark as onboarded
       const { error: profileErr } = await supabase
         .from('profiles')
-        .update({ phone: cleanPhone })
+        .update({ phone: cleanPhone, is_onboarded: true })
         .eq('id', user.id)
 
       if (profileErr) throw profileErr
