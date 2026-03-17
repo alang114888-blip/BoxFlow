@@ -21,6 +21,10 @@ export default function PRBoard() {
   const [selectedClient, setSelectedClient] = useState('')
   const [assigning, setAssigning] = useState(false)
 
+  // Apply defaults
+  const [applyingDefaults, setApplyingDefaults] = useState(false)
+  const [defaultsApplied, setDefaultsApplied] = useState(false)
+
   useEffect(() => {
     if (!profile) return
     fetchData()
@@ -31,7 +35,8 @@ export default function PRBoard() {
       setLoading(true)
       setError(null)
 
-      const [exRes, prRes, clientRes] = await Promise.all([
+      // Fetch trainer exercises + system defaults
+      const [trainerExRes, sysExRes, clientRes] = await Promise.all([
         supabase
           .from('exercises')
           .select('id, name, video_url, is_pr_eligible')
@@ -39,20 +44,11 @@ export default function PRBoard() {
           .eq('is_pr_eligible', true)
           .order('name'),
         supabase
-          .from('client_prs')
-          .select(`
-            id, weight_kg, date_achieved, updated_at,
-            client_id,
-            exercises ( id, name ),
-            profiles:client_id ( full_name, email )
-          `)
-          .in('exercise_id', (
-            await supabase
-              .from('exercises')
-              .select('id')
-              .eq('trainer_id', profile.id)
-              .eq('is_pr_eligible', true)
-          ).data?.map(e => e.id) || []),
+          .from('exercises')
+          .select('id, name, video_url, is_pr_eligible')
+          .is('trainer_id', null)
+          .eq('is_default', true)
+          .order('name'),
         supabase
           .from('trainer_clients')
           .select('client_id, profiles:client_id ( id, full_name, email )')
@@ -60,7 +56,20 @@ export default function PRBoard() {
           .eq('invite_accepted', true),
       ])
 
-      setExercises(exRes.data || [])
+      const allExercises = [...(sysExRes.data || []), ...(trainerExRes.data || [])]
+      const allExIds = allExercises.map(e => e.id)
+
+      // Fetch PRs for all these exercises
+      const { data: prData } = allExIds.length > 0
+        ? await supabase
+            .from('client_prs')
+            .select('id, weight_kg, date_achieved, updated_at, client_id, exercises ( id, name ), profiles:client_id ( full_name, email )')
+            .in('exercise_id', allExIds)
+        : { data: [] }
+
+      const prRes = { data: prData || [] }
+
+      setExercises(allExercises)
       setClientPRs(prRes.data || [])
       setClients((clientRes.data || []).map(c => c.profiles).filter(Boolean))
     } catch (err) {
@@ -115,6 +124,55 @@ export default function PRBoard() {
     }
   }
 
+  async function applyDefaultTemplate(clientId) {
+    if (!clientId) return
+    setApplyingDefaults(true)
+    setDefaultsApplied(false)
+    try {
+      // Get trainer's default exercises
+      const { data: defaults } = await supabase
+        .from('trainer_default_exercises')
+        .select('exercise_id')
+        .eq('trainer_id', profile.id)
+        .order('sort_order')
+
+      if (!defaults || defaults.length === 0) {
+        // Fallback: use all system default exercises
+        const { data: sysDefaults } = await supabase
+          .from('exercises')
+          .select('id')
+          .is('trainer_id', null)
+          .eq('is_default', true)
+
+        if (sysDefaults) {
+          for (const ex of sysDefaults) {
+            await supabase.from('client_prs').upsert({
+              client_id: clientId,
+              exercise_id: ex.id,
+              weight_kg: 0,
+              date_achieved: new Date().toISOString().split('T')[0],
+            }, { onConflict: 'client_id,exercise_id', ignoreDuplicates: true })
+          }
+        }
+      } else {
+        for (const d of defaults) {
+          await supabase.from('client_prs').upsert({
+            client_id: clientId,
+            exercise_id: d.exercise_id,
+            weight_kg: 0,
+            date_achieved: new Date().toISOString().split('T')[0],
+          }, { onConflict: 'client_id,exercise_id', ignoreDuplicates: true })
+        }
+      }
+      setDefaultsApplied(true)
+      fetchData()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setApplyingDefaults(false)
+    }
+  }
+
   async function handleDeleteExercise(id) {
     if (!confirm('Delete this PR exercise?')) return
     await supabase.from('exercises').delete().eq('id', id)
@@ -148,6 +206,30 @@ export default function PRBoard() {
 
       {error && (
         <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">{error}</div>
+      )}
+
+      {/* Apply Default Template */}
+      {clients.length > 0 && (
+        <div className="mb-4 rounded-2xl border border-primary/10 bg-[#1a1426] p-3">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-primary text-[20px]">playlist_add_check</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-slate-200">Apply Default Template</p>
+              <p className="text-[10px] text-slate-500">Add default PR exercises to a client</p>
+            </div>
+            <select
+              defaultValue=""
+              onChange={(e) => { if (e.target.value) applyDefaultTemplate(e.target.value) }}
+              disabled={applyingDefaults}
+              className="rounded-lg bg-slate-900/50 border border-slate-700 px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary/50 max-w-[140px]"
+            >
+              <option value="">Select client...</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.full_name || c.email}</option>)}
+            </select>
+          </div>
+          {applyingDefaults && <p className="mt-2 text-xs text-primary animate-pulse">Applying defaults...</p>}
+          {defaultsApplied && <p className="mt-2 text-xs text-emerald-400">Default exercises applied!</p>}
+        </div>
       )}
 
       {/* Add Exercise Form */}

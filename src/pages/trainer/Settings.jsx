@@ -57,6 +57,99 @@ export default function Settings() {
 
   const initial = (profile?.full_name || 'T').charAt(0).toUpperCase()
 
+  // Default PR exercises management
+  const [showDefaults, setShowDefaults] = useState(false)
+  const [systemExercises, setSystemExercises] = useState([])
+  const [selectedDefaults, setSelectedDefaults] = useState(new Set())
+  const [customDefaultName, setCustomDefaultName] = useState('')
+  const [savingDefaults, setSavingDefaults] = useState(false)
+  const [defaultsSaved, setDefaultsSaved] = useState(false)
+
+  useEffect(() => {
+    if (!profile?.id || !showDefaults) return
+    loadDefaults()
+  }, [profile?.id, showDefaults])
+
+  async function loadDefaults() {
+    // Fetch system exercises
+    const { data: sysEx } = await supabase
+      .from('exercises')
+      .select('id, name')
+      .is('trainer_id', null)
+      .eq('is_default', true)
+      .order('name')
+
+    // Fetch trainer's custom PR exercises
+    const { data: trainerEx } = await supabase
+      .from('exercises')
+      .select('id, name')
+      .eq('trainer_id', profile.id)
+      .eq('is_pr_eligible', true)
+      .order('name')
+
+    const allEx = [...(sysEx || []), ...(trainerEx || [])]
+    setSystemExercises(allEx)
+
+    // Fetch trainer's saved defaults
+    const { data: defaults } = await supabase
+      .from('trainer_default_exercises')
+      .select('exercise_id')
+      .eq('trainer_id', profile.id)
+
+    if (defaults && defaults.length > 0) {
+      setSelectedDefaults(new Set(defaults.map(d => d.exercise_id)))
+    } else {
+      // First time: select all system exercises by default
+      setSelectedDefaults(new Set(allEx.map(e => e.id)))
+    }
+  }
+
+  function toggleDefault(exId) {
+    setSelectedDefaults(prev => {
+      const next = new Set(prev)
+      if (next.has(exId)) next.delete(exId)
+      else next.add(exId)
+      return next
+    })
+  }
+
+  async function saveDefaults() {
+    setSavingDefaults(true)
+    setDefaultsSaved(false)
+    try {
+      // Delete existing
+      await supabase.from('trainer_default_exercises').delete().eq('trainer_id', profile.id)
+      // Insert selected
+      const rows = [...selectedDefaults].map((exId, i) => ({
+        trainer_id: profile.id,
+        exercise_id: exId,
+        sort_order: i,
+      }))
+      if (rows.length > 0) {
+        await supabase.from('trainer_default_exercises').insert(rows)
+      }
+      setDefaultsSaved(true)
+    } catch (err) {
+      console.error('Save defaults error:', err)
+    } finally {
+      setSavingDefaults(false)
+    }
+  }
+
+  async function addCustomDefault() {
+    if (!customDefaultName.trim()) return
+    const { data: newEx } = await supabase
+      .from('exercises')
+      .insert({ trainer_id: profile.id, name: customDefaultName.trim(), category: 'strength', is_pr_eligible: true })
+      .select()
+      .single()
+    if (newEx) {
+      setSystemExercises(prev => [...prev, newEx])
+      setSelectedDefaults(prev => new Set([...prev, newEx.id]))
+      setCustomDefaultName('')
+    }
+  }
+
   const menuItems = [
     { label: 'Exercise Library', to: '/trainer/exercises', icon: 'menu_book' },
     { label: 'Templates', to: '/trainer/templates', icon: 'content_copy' },
@@ -111,6 +204,71 @@ export default function Settings() {
               {saving ? 'Saving...' : 'Update Password'}
             </button>
           </form>
+        )}
+      </div>
+
+      {/* Default PR Exercises */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowDefaults(!showDefaults)}
+          className="flex w-full items-center justify-between rounded-2xl border border-primary/10 bg-[#1a1426] p-4 transition-colors hover:bg-[#251b3a]"
+        >
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-slate-300 text-[20px]">fitness_center</span>
+            <span className="text-sm font-medium text-slate-100">Default PR Exercises</span>
+          </div>
+          <span className={`material-symbols-outlined text-slate-400 text-[18px] transition-transform ${showDefaults ? 'rotate-90' : ''}`}>chevron_right</span>
+        </button>
+
+        {showDefaults && (
+          <div className="mt-2 rounded-2xl border border-primary/10 bg-[#1a1426] p-4 space-y-3">
+            <p className="text-xs text-slate-400">Select exercises that auto-assign to new clients:</p>
+
+            {/* Exercise checkboxes */}
+            <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+              {systemExercises.map(ex => (
+                <label key={ex.id} className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedDefaults.has(ex.id)}
+                    onChange={() => toggleDefault(ex.id)}
+                    className="rounded border-slate-600 bg-slate-800 text-primary focus:ring-primary/30 focus:ring-offset-0"
+                  />
+                  <span className="text-sm text-slate-200">{ex.name}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Add custom exercise */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customDefaultName}
+                onChange={(e) => setCustomDefaultName(e.target.value)}
+                placeholder="Add custom exercise..."
+                className="flex-1 rounded-lg bg-slate-900/50 border border-slate-700 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                onKeyDown={(e) => e.key === 'Enter' && addCustomDefault()}
+              />
+              <button onClick={addCustomDefault} className="px-3 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition">
+                Add
+              </button>
+            </div>
+
+            {/* Save + status */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-500">{selectedDefaults.size} exercises selected</span>
+              <div className="flex items-center gap-2">
+                {defaultsSaved && <span className="text-xs text-emerald-400">Saved!</span>}
+                <button
+                  onClick={saveDefaults}
+                  disabled={savingDefaults}
+                  className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-[#6d28d9] transition disabled:opacity-50"
+                >
+                  {savingDefaults ? 'Saving...' : 'Save Defaults'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
