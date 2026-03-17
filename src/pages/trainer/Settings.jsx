@@ -1,12 +1,32 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import PasswordInput, { validatePassword, validatePasswordMatch } from '../../components/PasswordInput'
 
 export default function Settings() {
   const { profile, signOut, changePassword } = useAuth()
+  const navigate = useNavigate()
   const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [isAlsoClient, setIsAlsoClient] = useState(false)
+  const [clientTrainerName, setClientTrainerName] = useState('')
+
+  useEffect(() => {
+    if (!profile?.id) return
+    // Check if this trainer is also a client under another trainer
+    supabase
+      .from('trainer_clients')
+      .select('trainer_id, profiles:trainer_id ( full_name )')
+      .eq('client_id', profile.id)
+      .eq('invite_accepted', true)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setIsAlsoClient(true)
+          setClientTrainerName(data.profiles?.full_name || 'your trainer')
+        }
+      })
+  }, [profile?.id])
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
@@ -110,6 +130,26 @@ export default function Settings() {
           </Link>
         ))}
       </div>
+
+      {/* Role Switcher — if trainer is also a client */}
+      {isAlsoClient && (
+        <div className="mb-4 rounded-2xl border border-primary/10 bg-[#1a1426] p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="material-symbols-outlined text-primary text-[20px]">swap_horiz</span>
+            <div>
+              <p className="text-sm font-medium text-slate-100">My Training Profile</p>
+              <p className="text-xs text-slate-400">You are also a client under {clientTrainerName}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/client')}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/20 py-2.5 text-sm font-semibold text-primary hover:bg-primary/20 transition"
+          >
+            <span className="material-symbols-outlined text-[18px]">fitness_center</span>
+            View My Workout
+          </button>
+        </div>
+      )}
 
       {/* Sign Out */}
       <button

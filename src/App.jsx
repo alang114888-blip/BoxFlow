@@ -21,6 +21,7 @@ import Settings from './pages/trainer/Settings'
 import PRBoard from './pages/trainer/PRBoard'
 import Templates from './pages/trainer/Templates'
 import ClientHistory from './pages/trainer/ClientHistory'
+import NutritionClientView from './pages/trainer/NutritionClientView'
 import ClientDashboard from './pages/client/ClientDashboard'
 import MyWorkouts from './pages/client/MyWorkouts'
 import MyNutrition from './pages/client/MyNutrition'
@@ -28,6 +29,7 @@ import PRTracker from './pages/client/PRTracker'
 import PercentageCalculator from './pages/client/PercentageCalculator'
 import WODFeed from './pages/client/WODFeed'
 import WeeklyCheckIn from './pages/client/WeeklyCheckIn'
+import NutritionHome from './pages/client/NutritionHome'
 import ClientLeaderboard from './pages/client/Leaderboard'
 import Onboarding from './pages/Onboarding'
 import ResetPassword from './pages/ResetPassword'
@@ -87,6 +89,7 @@ export default function App() {
           <Route path="/trainer/pr-board" element={<PRBoard />} />
           <Route path="/trainer/templates" element={<Templates />} />
           <Route path="/trainer/client-history/:clientId" element={<ClientHistory />} />
+          <Route path="/trainer/nutrition-client/:clientId" element={<NutritionClientView />} />
           <Route path="/trainer/settings" element={<Settings />} />
         </Route>
       </Route>
@@ -101,6 +104,7 @@ export default function App() {
           <Route path="/client/calculator" element={<PercentageCalculator />} />
           <Route path="/client/wod" element={<WODFeed />} />
           <Route path="/client/checkin" element={<WeeklyCheckIn />} />
+          <Route path="/client/nutrition-home" element={<NutritionHome />} />
         </Route>
         <Route path="/client/leaderboard" element={<ClientLeaderboard />} />
       </Route>
