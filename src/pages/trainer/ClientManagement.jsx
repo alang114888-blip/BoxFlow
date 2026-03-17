@@ -99,7 +99,24 @@ export default function ClientManagement() {
         })
       )
 
-      setClients(enriched)
+      // Also fetch pending invites
+      const { data: pending } = await supabase
+        .from('pending_invites')
+        .select('id, email, created_at')
+        .eq('trainer_id', profile.id)
+
+      const pendingAsClients = (pending || []).map(p => ({
+        id: `pending-${p.id}`,
+        client_id: null,
+        invited_email: p.email,
+        invite_accepted: false,
+        profiles: null,
+        activePlansCount: 0,
+        lastWorkout: null,
+        _isPending: true,
+      }))
+
+      setClients([...enriched, ...pendingAsClients])
     } catch (err) {
       console.error('Fetch clients error:', err)
       setError(err.message)

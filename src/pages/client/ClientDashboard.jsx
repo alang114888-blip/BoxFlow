@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
+import NutritionHome from './NutritionHome'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 export default function ClientDashboard() {
   const { profile } = useAuth()
+  const outletContext = useOutletContext() || {}
+  const trainerType = outletContext.trainerType
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [todayWorkout, setTodayWorkout] = useState(null)
@@ -319,6 +323,10 @@ function MacroBar({ label, current, target, color }) {
           style={{ width: `${pct}%` }}
         />
       </div>
+      {/* Nutrition Features - shown for nutrition/both trainer types */}
+      {(trainerType === 'nutrition' || trainerType === 'both') && (
+        <NutritionHome />
+      )}
     </div>
   )
 }
