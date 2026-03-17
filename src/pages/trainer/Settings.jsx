@@ -151,6 +151,7 @@ export default function Settings() {
   }
 
   const menuItems = [
+    { label: 'Calendar', to: '/trainer/calendar', icon: 'calendar_month' },
     { label: 'Exercise Library', to: '/trainer/exercises', icon: 'menu_book' },
     { label: 'Templates', to: '/trainer/templates', icon: 'content_copy' },
     { label: 'WOD', to: '/trainer/wod', icon: 'local_fire_department' },

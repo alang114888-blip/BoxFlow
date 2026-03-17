@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import NutritionHome from './NutritionHome'
+import Habits from './Habits'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -323,6 +324,9 @@ function MacroBar({ label, current, target, color }) {
           style={{ width: `${pct}%` }}
         />
       </div>
+      {/* Habits - shown for all clients */}
+      <Habits />
+
       {/* Nutrition Features - shown for nutrition/both trainer types */}
       {(trainerType === 'nutrition' || trainerType === 'both') && (
         <NutritionHome />

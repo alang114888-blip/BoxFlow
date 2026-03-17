@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import PhotoUpload from '../../components/PhotoUpload'
+import HabitManager from './HabitManager'
 
 const TABS = ['Dashboard', 'Photos', 'Tools', 'History']
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -354,6 +355,9 @@ export default function NutritionClientView() {
                 className={inputCls} />
             </div>
           </div>
+
+          {/* Habits */}
+          <HabitManager clientId={clientId} clientName={client?.full_name} />
 
           {/* Meal Plan */}
           <button onClick={() => navigate('/trainer/nutrition')}

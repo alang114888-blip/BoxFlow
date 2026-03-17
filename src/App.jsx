@@ -22,6 +22,7 @@ import PRBoard from './pages/trainer/PRBoard'
 import Templates from './pages/trainer/Templates'
 import ClientHistory from './pages/trainer/ClientHistory'
 import NutritionClientView from './pages/trainer/NutritionClientView'
+import Calendar from './pages/trainer/Calendar'
 import ClientDashboard from './pages/client/ClientDashboard'
 import MyWorkouts from './pages/client/MyWorkouts'
 import MyNutrition from './pages/client/MyNutrition'
@@ -91,6 +92,7 @@ export default function App() {
           <Route path="/trainer/templates" element={<Templates />} />
           <Route path="/trainer/client-history/:clientId" element={<ClientHistory />} />
           <Route path="/trainer/nutrition-client/:clientId" element={<NutritionClientView />} />
+          <Route path="/trainer/calendar" element={<Calendar />} />
           <Route path="/trainer/settings" element={<Settings />} />
         </Route>
       </Route>
