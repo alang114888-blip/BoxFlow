@@ -31,6 +31,9 @@ export default function ClientManagement() {
   const [availablePlans, setAvailablePlans] = useState([])
   const [assigningPlan, setAssigningPlan] = useState(false)
 
+  // Delete client
+  const [clientToDelete, setClientToDelete] = useState(null)
+
   // Set password
   const [passwordClient, setPasswordClient] = useState(null)
   const [newPassword, setNewPassword] = useState('')
@@ -441,6 +444,21 @@ export default function ClientManagement() {
                             >
                               <span className="material-symbols-outlined text-[14px]">lock_open</span>
                               Unlock Account
+                            </button>
+                          )}
+                          {clientToDelete === client.client_id ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <span className="text-xs text-red-400">Delete this client?</span>
+                              <button onClick={async () => { await supabase.rpc('delete_user', { user_id: client.client_id }); setClientToDelete(null); fetchClients() }}
+                                className="rounded-md bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700 transition">Yes</button>
+                              <button onClick={() => setClientToDelete(null)}
+                                className="rounded-md bg-dark-600 px-2 py-1 text-xs text-dark-200 hover:bg-dark-500 transition">No</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setClientToDelete(client.client_id)}
+                              className="inline-flex items-center gap-1 rounded-md bg-red-500/10 border border-red-500/20 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition">
+                              <span className="material-symbols-outlined text-[14px]">delete</span>
+                              Delete Client
                             </button>
                           )}
                         </div>

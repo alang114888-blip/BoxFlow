@@ -224,18 +224,48 @@ export default function Settings() {
           <div className="mt-2 rounded-2xl border border-primary/10 bg-[#1a1426] p-4 space-y-3">
             <p className="text-xs text-slate-400">Select exercises that auto-assign to new clients:</p>
 
-            {/* Exercise checkboxes */}
-            <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
-              {systemExercises.map(ex => (
-                <label key={ex.id} className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer">
+            {/* Exercise checkboxes with reorder */}
+            <div className="max-h-64 overflow-y-auto space-y-0.5 pr-1">
+              {systemExercises.map((ex, idx) => (
+                <div key={ex.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 group">
                   <input
                     type="checkbox"
                     checked={selectedDefaults.has(ex.id)}
                     onChange={() => toggleDefault(ex.id)}
                     className="rounded border-slate-600 bg-slate-800 text-primary focus:ring-primary/30 focus:ring-offset-0"
                   />
-                  <span className="text-sm text-slate-200">{ex.name}</span>
-                </label>
+                  <span className="text-sm text-slate-200 flex-1">{ex.name}</span>
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => {
+                        if (idx === 0) return
+                        setSystemExercises(prev => {
+                          const arr = [...prev]
+                          ;[arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]]
+                          return arr
+                        })
+                      }}
+                      disabled={idx === 0}
+                      className="p-0.5 text-slate-500 hover:text-primary disabled:opacity-20 transition"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (idx === systemExercises.length - 1) return
+                        setSystemExercises(prev => {
+                          const arr = [...prev]
+                          ;[arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]]
+                          return arr
+                        })
+                      }}
+                      disabled={idx === systemExercises.length - 1}
+                      className="p-0.5 text-slate-500 hover:text-primary disabled:opacity-20 transition"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">arrow_downward</span>
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
 

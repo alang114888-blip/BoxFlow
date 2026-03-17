@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 
@@ -18,8 +18,10 @@ export default function ClientLayout() {
   const [trainerType, setTrainerType] = useState(null)
   const [loadingType, setLoadingType] = useState(true)
 
+  const navigate = useNavigate()
   const firstName = profile?.full_name?.split(' ')[0] || 'Athlete'
   const avatarUrl = profile?.avatar_url
+  const isTrainerViewing = profile?.role === 'trainer'
 
   useEffect(() => {
     if (!profile?.id) return
@@ -96,6 +98,17 @@ export default function ClientLayout() {
           </div>
         </div>
       </header>
+
+      {/* Back to Trainer button — shown when trainer views as client */}
+      {isTrainerViewing && (
+        <div className="px-5 pb-2">
+          <button onClick={() => navigate('/trainer')}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/20 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition">
+            <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+            Back to Trainer Dashboard
+          </button>
+        </div>
+      )}
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto pb-28">

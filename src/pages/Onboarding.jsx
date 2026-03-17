@@ -65,6 +65,40 @@ export default function Onboarding() {
 
       if (profileErr) throw profileErr
 
+      // Auto-assign default PR exercises from trainer (if client)
+      if (profile?.role === 'client') {
+        const { data: tc } = await supabase.from('trainer_clients').select('trainer_id').eq('client_id', user.id).eq('invite_accepted', true).maybeSingle()
+        if (tc?.trainer_id) {
+          // Check for auto-assign template
+          const { data: autoTemplate } = await supabase.from('workout_templates').select('id, structure_json').eq('trainer_id', tc.trainer_id).eq('auto_assign', true).maybeSingle()
+          if (autoTemplate?.structure_json?.days) {
+            // Create workout plan from template
+            const { data: newPlan } = await supabase.from('workout_plans').insert({
+              trainer_id: tc.trainer_id, client_id: user.id, name: `${profile.full_name || 'Client'} - Initial Plan`, is_active: true,
+            }).select().single()
+            if (newPlan) {
+              for (const day of autoTemplate.structure_json.days) {
+                const { data: newDay } = await supabase.from('workout_days').insert({
+                  plan_id: newPlan.id, day_of_week: day.day_of_week || null, name: day.name || 'Day',
+                }).select().single()
+                if (newDay && day.exercises?.length > 0) {
+                  await supabase.from('workout_exercises').insert(
+                    day.exercises.map((ex, i) => ({ workout_day_id: newDay.id, exercise_id: ex.exercise_id, order_index: i, sets: ex.sets || 3, reps: ex.reps || '10', percentage_of_pr: ex.percentage_of_pr || null, section: ex.section || 'other', section_order: i, notes: ex.notes || null }))
+                  )
+                }
+              }
+            }
+          }
+          // Auto-assign default PR exercises
+          const { data: defaults } = await supabase.from('trainer_default_exercises').select('exercise_id').eq('trainer_id', tc.trainer_id).order('sort_order')
+          if (defaults?.length > 0) {
+            for (const d of defaults) {
+              await supabase.from('client_prs').upsert({ client_id: user.id, exercise_id: d.exercise_id, weight_kg: 0, date_achieved: new Date().toISOString().split('T')[0] }, { onConflict: 'client_id,exercise_id', ignoreDuplicates: true }).catch(() => {})
+            }
+          }
+        }
+      }
+
       // Redirect to dashboard
       if (profile?.role === 'trainer') {
         navigate('/trainer', { replace: true })

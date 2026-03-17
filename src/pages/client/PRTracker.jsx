@@ -59,19 +59,23 @@ export default function PRTracker() {
 
       // Build PR map (latest per exercise)
       const prMap = {}
-      const history = []
       if (prsRes.data) {
         prsRes.data.forEach((pr) => {
-          history.push(pr)
-          if (!prMap[pr.exercise_id]) {
-            prMap[pr.exercise_id] = pr
-          }
+          if (!prMap[pr.exercise_id]) prMap[pr.exercise_id] = pr
         })
       }
 
+      // Fetch full PR history from pr_history table
+      const { data: histData } = await supabase
+        .from('pr_history')
+        .select('id, exercise_id, weight_kg, recorded_at, exercises ( name )')
+        .eq('client_id', profile.id)
+        .order('recorded_at', { ascending: false })
+        .limit(50)
+
       setPrExercises(exercises)
       setPrs(prMap)
-      setPrHistory(history)
+      setPrHistory(histData || [])
     } catch (err) {
       setError(err.message)
     } finally {
@@ -90,6 +94,7 @@ export default function PRTracker() {
     try {
       setSaving(true)
 
+      // Update current PR
       const { error: upsertErr } = await supabase
         .from('client_prs')
         .upsert(
@@ -103,6 +108,13 @@ export default function PRTracker() {
         )
 
       if (upsertErr) throw upsertErr
+
+      // Also save to PR history (full log, never overwritten)
+      await supabase.from('pr_history').insert({
+        client_id: profile.id,
+        exercise_id: exerciseId,
+        weight_kg: weight,
+      }).catch(() => {}) // non-critical
 
       setEditingId(null)
       setEditWeight('')

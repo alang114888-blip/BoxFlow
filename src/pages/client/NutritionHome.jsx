@@ -158,6 +158,24 @@ export default function NutritionHome() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-4 space-y-3 font-[Lexend]">
+      {/* Weigh-in Reminder Banner */}
+      {(() => {
+        const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+        const today = dayNames[new Date().getDay()]
+        if (trainerClient?.weigh_in_day && today === trainerClient.weigh_in_day) {
+          return (
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 flex items-center gap-3">
+              <span className="text-2xl">⚖️</span>
+              <div>
+                <p className="text-sm font-bold text-amber-400">Today is your weigh-in day!</p>
+                <p className="text-xs text-amber-400/70">Log your weight below</p>
+              </div>
+            </div>
+          )
+        }
+        return null
+      })()}
+
       {/* 1. Motivation Card */}
       {trainerClient?.motivation_message && (
         <div className="rounded-2xl bg-gradient-to-br from-[#7c3bed] to-[#5b21b6] p-4 shadow-lg">

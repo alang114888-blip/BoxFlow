@@ -107,6 +107,17 @@ export default function WeeklyCheckIn() {
 
       if (upsertErr) throw upsertErr
 
+      // Notify trainer
+      if (trainerId) {
+        await supabase.from('notifications').insert({
+          user_id: trainerId,
+          title: 'Weekly Check-in',
+          message: `${profile.full_name || 'A client'} submitted their weekly check-in`,
+          type: 'checkin',
+          read: false,
+        }).catch(() => {})
+      }
+
       setSuccess(true)
       setEditing(false)
       await fetchData()
