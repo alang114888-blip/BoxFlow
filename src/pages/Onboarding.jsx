@@ -75,25 +75,52 @@ export default function Onboarding() {
       }
 
       // Resolve pending invites → create trainer_clients
-      const { data: pendingInvites } = await supabase
-        .from('pending_invites')
-        .select('id, trainer_id')
-        .eq('email', user.email)
+      const clientEmail = (user.email || '').toLowerCase()
+      console.log('Onboarding: checking pending_invites for', clientEmail)
 
-      if (pendingInvites?.length > 0) {
-        for (const inv of pendingInvites) {
-          await supabase.from('trainer_clients').insert({
+      const { data: pendingInvites, error: piErr } = await supabase
+        .from('pending_invites')
+        .select('id, trainer_id, email')
+
+      console.log('Onboarding: all pending_invites:', pendingInvites?.length, piErr?.message || '')
+
+      // Match case-insensitive
+      const myInvites = (pendingInvites || []).filter(
+        pi => pi.email.toLowerCase() === clientEmail
+      )
+      console.log('Onboarding: matched invites for me:', myInvites.length)
+
+      if (myInvites.length > 0) {
+        for (const inv of myInvites) {
+          console.log('Onboarding: creating trainer_clients:', inv.trainer_id, '→', user.id)
+          const { error: tcErr } = await supabase.from('trainer_clients').insert({
             trainer_id: inv.trainer_id,
             client_id: user.id,
-            invited_email: user.email,
+            invited_email: clientEmail,
             invite_accepted: true,
-          }).catch(() => {}) // ignore duplicates
-          await supabase.from('pending_invites').delete().eq('id', inv.id).catch(() => {})
+          })
+          if (tcErr) console.error('Onboarding: trainer_clients insert error:', tcErr.message)
+          else console.log('Onboarding: trainer_clients created successfully')
+
+          await supabase.from('pending_invites').delete().eq('id', inv.id)
+          console.log('Onboarding: deleted pending_invite', inv.id)
         }
       }
 
+      // Also check by invited_by_trainer metadata
+      const invitedBy = user.user_metadata?.invited_by_trainer
+      if (invitedBy && myInvites.length === 0) {
+        console.log('Onboarding: using metadata invited_by_trainer:', invitedBy)
+        await supabase.from('trainer_clients').insert({
+          trainer_id: invitedBy,
+          client_id: user.id,
+          invited_email: clientEmail,
+          invite_accepted: true,
+        }).catch(() => {})
+      }
+
       // Auto-assign default PR exercises from trainer (if client)
-      if (profile?.role === 'client' || pendingInvites?.length > 0) {
+      if (profile?.role === 'client' || myInvites.length > 0 || invitedBy) {
         const { data: tc } = await supabase.from('trainer_clients').select('trainer_id').eq('client_id', user.id).eq('invite_accepted', true).maybeSingle()
         if (tc?.trainer_id) {
           // Check for auto-assign template
