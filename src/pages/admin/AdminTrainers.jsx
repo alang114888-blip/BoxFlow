@@ -389,44 +389,22 @@ export default function AdminTrainers() {
                           }))
 
                           try {
-                            // Try update first (existing row)
-                            if (tpId) {
-                              const { error: upErr } = await supabase
+                            // Use RPC (SECURITY DEFINER) — guaranteed to work regardless of RLS
+                            const { error: rpcErr } = await supabase.rpc('set_trainer_type', {
+                              target_user_id: trainer.id,
+                              new_type: newType,
+                            })
+
+                            if (rpcErr) {
+                              console.error('set_trainer_type RPC error:', rpcErr)
+                              // Fallback: direct upsert
+                              const { error: upsertErr } = await supabase
                                 .from('trainer_profiles')
-                                .update({ trainer_type: newType })
-                                .eq('id', tpId)
-                              if (upErr) console.warn('Update failed, trying upsert:', upErr.message)
+                                .upsert({ user_id: trainer.id, trainer_type: newType }, { onConflict: 'user_id' })
+                              if (upsertErr) throw upsertErr
                             }
 
-                            // Then upsert as fallback (handles both insert & update)
-                            const { error: upsertErr } = await supabase
-                              .from('trainer_profiles')
-                              .upsert(
-                                { user_id: trainer.id, trainer_type: newType },
-                                { onConflict: 'user_id' }
-                              )
-
-                            if (upsertErr) {
-                              console.error('Trainer type upsert error:', upsertErr)
-                              // Last resort: try RPC
-                              const { error: rpcErr } = await supabase.rpc('set_trainer_type', {
-                                target_user_id: trainer.id,
-                                new_type: newType,
-                              })
-                              if (rpcErr) {
-                                console.error('RPC fallback also failed:', rpcErr)
-                                throw upsertErr
-                              }
-                            }
-
-                            // Verify
-                            const { data: verify } = await supabase
-                              .from('trainer_profiles')
-                              .select('trainer_type')
-                              .eq('user_id', trainer.id)
-                              .maybeSingle()
-                            console.log('Trainer type saved:', trainer.id, '→', newType, '| DB verify:', verify?.trainer_type)
-
+                            console.log('Trainer type saved:', trainer.id, '→', newType)
                             setTypeSaved(trainer.id)
                             setTimeout(() => setTypeSaved(null), 2000)
                             fetchTrainers()
