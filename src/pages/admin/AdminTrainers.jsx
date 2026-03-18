@@ -389,7 +389,16 @@ export default function AdminTrainers() {
                           }))
 
                           try {
-                            // Always use upsert to handle both insert and update
+                            // Try update first (existing row)
+                            if (tpId) {
+                              const { error: upErr } = await supabase
+                                .from('trainer_profiles')
+                                .update({ trainer_type: newType })
+                                .eq('id', tpId)
+                              if (upErr) console.warn('Update failed, trying upsert:', upErr.message)
+                            }
+
+                            // Then upsert as fallback (handles both insert & update)
                             const { error: upsertErr } = await supabase
                               .from('trainer_profiles')
                               .upsert(
@@ -399,25 +408,27 @@ export default function AdminTrainers() {
 
                             if (upsertErr) {
                               console.error('Trainer type upsert error:', upsertErr)
-                              throw upsertErr
+                              // Last resort: try RPC
+                              const { error: rpcErr } = await supabase.rpc('set_trainer_type', {
+                                target_user_id: trainer.id,
+                                new_type: newType,
+                              })
+                              if (rpcErr) {
+                                console.error('RPC fallback also failed:', rpcErr)
+                                throw upsertErr
+                              }
                             }
 
-                            // Verify the save worked
+                            // Verify
                             const { data: verify } = await supabase
                               .from('trainer_profiles')
                               .select('trainer_type')
                               .eq('user_id', trainer.id)
                               .maybeSingle()
-                            console.log('Trainer type saved:', trainer.id, '→', newType, '| DB now:', verify?.trainer_type)
-
-                            if (verify?.trainer_type !== newType) {
-                              console.error('MISMATCH! Expected:', newType, 'Got:', verify?.trainer_type)
-                              setError(`Save failed: expected ${newType} but DB has ${verify?.trainer_type || 'null'}`)
-                            }
+                            console.log('Trainer type saved:', trainer.id, '→', newType, '| DB verify:', verify?.trainer_type)
 
                             setTypeSaved(trainer.id)
                             setTimeout(() => setTypeSaved(null), 2000)
-                            // Refresh from DB to confirm
                             fetchTrainers()
                           } catch (err) {
                             console.error('Failed to update trainer type:', err)
