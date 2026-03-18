@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 
@@ -14,16 +14,13 @@ const allTabs = [
   { key: 'nutrition', to: '/trainer/nutrition', label: 'Nutrition', icon: 'restaurant_menu', show: ['nutrition'] },
   { key: 'pr', to: '/trainer/pr-board', label: 'PR Board', icon: 'trophy', show: ['fitness'] },
   { key: 'wod', to: '/trainer/wod', label: 'WOD', icon: 'local_fire_department', show: ['fitness'] },
-  { key: 'settings', to: '/trainer/settings', label: 'Settings', icon: 'settings', show: ['*'] },
 ]
 
 export default function TrainerLayout() {
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const [trainerType, setTrainerType] = useState(null)
   const [loadingType, setLoadingType] = useState(true)
-  const [notifCount, setNotifCount] = useState(0)
-  const [showNotifs, setShowNotifs] = useState(false)
-  const [notifications, setNotifications] = useState([])
   // Mode toggle for 'both' trainers
   const [activeMode, setActiveMode] = useState(() => localStorage.getItem('bf_trainer_mode') || 'fitness')
 
@@ -42,32 +39,6 @@ export default function TrainerLayout() {
         setLoadingType(false)
       })
   }, [profile?.id])
-
-  // Fetch notifications
-  useEffect(() => {
-    if (!profile?.id) return
-    async function fetchNotifs() {
-      const { count } = await supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', profile.id).eq('read', false)
-      setNotifCount(count || 0)
-    }
-    fetchNotifs()
-    const interval = setInterval(fetchNotifs, 30000) // refresh every 30s
-    return () => clearInterval(interval)
-  }, [profile?.id])
-
-  async function openNotifications() {
-    setShowNotifs(!showNotifs)
-    if (!showNotifs) {
-      const { data } = await supabase.from('notifications').select('*').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(10)
-      setNotifications(data || [])
-    }
-  }
-
-  async function markRead(notifId) {
-    await supabase.from('notifications').update({ read: true }).eq('id', notifId)
-    setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n))
-    setNotifCount(prev => Math.max(0, prev - 1))
-  }
 
   function toggleMode(mode) {
     setActiveMode(mode)
@@ -108,37 +79,9 @@ export default function TrainerLayout() {
               <h1 className="text-lg font-bold tracking-tight">Box<span className="text-primary">Flow</span></h1>
             </div>
           </div>
-          <div className="relative">
-            <button onClick={openNotifications} className="relative p-2">
-              <span className="material-symbols-outlined text-slate-400 text-[24px]">notifications</span>
-              {notifCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white px-1">
-                  {notifCount > 9 ? '9+' : notifCount}
-                </span>
-              )}
-            </button>
-            {showNotifs && (
-              <div className="absolute right-0 top-12 w-72 max-h-80 overflow-y-auto rounded-2xl border border-primary/10 bg-[#1a1225] shadow-2xl z-50">
-                <div className="px-4 py-3 border-b border-white/5">
-                  <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">Notifications</p>
-                </div>
-                {notifications.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-slate-500">No notifications</div>
-                ) : (
-                  <div className="divide-y divide-white/5">
-                    {notifications.map(n => (
-                      <button key={n.id} onClick={() => markRead(n.id)}
-                        className={`w-full text-left px-4 py-3 hover:bg-white/5 transition ${n.read ? 'opacity-50' : ''}`}>
-                        <p className="text-xs font-medium text-white">{n.title}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{n.message}</p>
-                        <p className="text-[9px] text-slate-600 mt-1">{new Date(n.created_at).toLocaleString()}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <button onClick={() => navigate('/trainer/settings')} className="p-2 rounded-xl hover:bg-white/5 transition">
+            <span className="material-symbols-outlined text-slate-400 text-[24px]">settings</span>
+          </button>
         </div>
 
         {/* Mode toggle — only for 'both' trainers */}
