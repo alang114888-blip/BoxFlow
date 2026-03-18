@@ -31,8 +31,10 @@ export default function TrainerLayout() {
       .select('trainer_type')
       .eq('user_id', profile.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('TrainerLayout: fetch trainer_type error:', error)
         const type = data?.trainer_type || 'fitness'
+        console.log('TrainerLayout: trainer_type from DB:', data?.trainer_type, '→ using:', type)
         setTrainerType(type)
         // If not 'both', force the mode to match type
         if (type !== 'both') setActiveMode(type)

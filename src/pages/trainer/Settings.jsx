@@ -72,12 +72,14 @@ export default function Settings() {
 
   async function loadDefaults() {
     // Fetch system exercises
-    const { data: sysEx } = await supabase
+    const { data: sysEx, error: sysErr } = await supabase
       .from('exercises')
       .select('id, name')
       .is('trainer_id', null)
       .eq('is_default', true)
       .order('name')
+
+    console.log('System default exercises:', sysEx?.length || 0, sysErr ? `Error: ${sysErr.message}` : '')
 
     // Fetch trainer's custom PR exercises
     const { data: trainerEx } = await supabase
@@ -226,6 +228,12 @@ export default function Settings() {
             <p className="text-xs text-slate-400">Select exercises that auto-assign to new clients:</p>
 
             {/* Exercise checkboxes with reorder */}
+            {systemExercises.length === 0 && (
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-400">
+                <p className="font-medium mb-1">No default exercises found in database.</p>
+                <p className="text-amber-400/70">Ask your admin to run the SQL migration to insert the 19 default PR exercises.</p>
+              </div>
+            )}
             <div className="max-h-64 overflow-y-auto space-y-0.5 pr-1">
               {systemExercises.map((ex, idx) => (
                 <div key={ex.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 group">

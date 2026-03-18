@@ -389,22 +389,20 @@ export default function AdminTrainers() {
                           }))
 
                           try {
-                            let result
-                            if (tpId) {
-                              result = await supabase.from('trainer_profiles').update({ trainer_type: newType }).eq('id', tpId)
-                            } else {
-                              result = await supabase.from('trainer_profiles').insert({ user_id: trainer.id, trainer_type: newType })
+                            // Always use upsert to handle both insert and update
+                            const { error: upsertErr } = await supabase
+                              .from('trainer_profiles')
+                              .upsert(
+                                { user_id: trainer.id, trainer_type: newType },
+                                { onConflict: 'user_id' }
+                              )
+
+                            if (upsertErr) {
+                              console.error('Trainer type upsert error:', upsertErr)
+                              throw upsertErr
                             }
 
-                            if (result.error) {
-                              // RLS might block — try via user_id match
-                              const { error: retryErr } = await supabase.from('trainer_profiles').upsert({
-                                user_id: trainer.id,
-                                trainer_type: newType,
-                              }, { onConflict: 'user_id' })
-                              if (retryErr) throw retryErr
-                            }
-
+                            console.log('Trainer type saved:', trainer.id, '→', newType)
                             setTypeSaved(trainer.id)
                             setTimeout(() => setTypeSaved(null), 2000)
                           } catch (err) {
