@@ -297,6 +297,9 @@ export default function AdminClients() {
                     Email
                   </th>
                   <th className="px-6 py-4 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Phone
+                  </th>
+                  <th className="px-6 py-4 text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Trainer
                   </th>
                   <th className="px-6 py-4 text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -336,6 +339,11 @@ export default function AdminClients() {
                     {/* Email */}
                     <td className="px-6 py-4 text-sm text-slate-400">
                       {client.email}
+                    </td>
+
+                    {/* Phone */}
+                    <td className="px-6 py-4 text-sm text-slate-400">
+                      {client.phone || <span className="text-slate-600">-</span>}
                     </td>
 
                     {/* Trainer */}
