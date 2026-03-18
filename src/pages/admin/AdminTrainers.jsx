@@ -74,9 +74,13 @@ export default function AdminTrainers() {
             .select('id', { count: 'exact', head: true })
             .eq('trainer_id', trainer.id)
 
+          // Flatten trainer_type for easy access
+          const trainerType = trainer.trainer_profiles?.[0]?.trainer_type || null
+
           return {
             ...trainer,
             clientCount: count ?? 0,
+            _trainerType: trainerType, // flattened for dropdown
           }
         })
       )
@@ -386,22 +390,14 @@ export default function AdminTrainers() {
                     {/* Type Selector */}
                     <td className="px-6 py-4">
                       <select
-                        value={trainer.trainer_profiles?.[0]?.trainer_type || 'fitness'}
+                        value={trainer._trainerType || 'fitness'}
                         onChange={async (e) => {
                           const newType = e.target.value
-                          const tpId = trainer.trainer_profiles?.[0]?.id
 
                           // Optimistic update
-                          setTrainers(prev => prev.map(t => {
-                            if (t.id !== trainer.id) return t
-                            const tp = t.trainer_profiles?.[0]
-                            return {
-                              ...t,
-                              trainer_profiles: tp
-                                ? [{ ...tp, trainer_type: newType }]
-                                : [{ id: 'temp', trainer_type: newType, user_id: trainer.id }],
-                            }
-                          }))
+                          setTrainers(prev => prev.map(t =>
+                            t.id === trainer.id ? { ...t, _trainerType: newType } : t
+                          ))
 
                           try {
                             // Use RPC (SECURITY DEFINER) — guaranteed to work regardless of RLS
