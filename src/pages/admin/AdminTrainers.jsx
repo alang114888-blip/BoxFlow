@@ -46,47 +46,45 @@ export default function AdminTrainers() {
     setError(null)
 
     try {
-      const { data, error: fetchError } = await supabase
+      // Step 1: fetch all trainers
+      const { data: profiles, error: fetchError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          full_name,
-          email,
-          role,
-          created_at,
-          locked_at,
-          failed_attempts,
-          trainer_profiles (
-            id,
-            trainer_type,
-            specializations
-          )
-        `)
+        .select('id, full_name, email, role, created_at, locked_at, failed_attempts')
         .eq('role', 'trainer')
         .order('full_name')
 
       if (fetchError) throw fetchError
 
-      const trainersWithCounts = await Promise.all(
-        (data || []).map(async (trainer) => {
+      // Step 2: fetch ALL trainer_profiles in one query
+      const trainerIds = (profiles || []).map(p => p.id)
+      const { data: allProfiles } = trainerIds.length > 0
+        ? await supabase.from('trainer_profiles').select('user_id, trainer_type').in('user_id', trainerIds)
+        : { data: [] }
+
+      // Build a map: user_id → trainer_type
+      const typeMap = {}
+      ;(allProfiles || []).forEach(tp => { typeMap[tp.user_id] = tp.trainer_type })
+
+      // Step 3: fetch client counts
+      const trainersWithData = await Promise.all(
+        (profiles || []).map(async (trainer) => {
           const { count } = await supabase
             .from('trainer_clients')
             .select('id', { count: 'exact', head: true })
             .eq('trainer_id', trainer.id)
 
-          // Flatten trainer_type for easy access
-          const trainerType = trainer.trainer_profiles?.[0]?.trainer_type || null
-          console.log('Trainer:', trainer.full_name, '| trainer_profiles:', JSON.stringify(trainer.trainer_profiles), '| type:', trainerType)
+          const trainerType = typeMap[trainer.id] || null
+          console.log('Trainer:', trainer.full_name, '| type from DB:', trainerType)
 
           return {
             ...trainer,
             clientCount: count ?? 0,
-            _trainerType: trainerType, // flattened for dropdown
+            trainer_type: trainerType, // direct field, not nested
           }
         })
       )
 
-      setTrainers(trainersWithCounts)
+      setTrainers(trainersWithData)
 
       // Compute stats
       const total = trainersWithCounts.length
@@ -208,7 +206,7 @@ export default function AdminTrainers() {
   }
 
   function getTrainerTypeLabel(trainer) {
-    const type = trainer._trainerType
+    const type = trainer.trainer_type
     if (type === 'fitness') return 'Personal Trainer'
     if (type === 'nutrition') return 'Nutritionist'
     if (type === 'both') return 'Both'
@@ -216,7 +214,7 @@ export default function AdminTrainers() {
   }
 
   function getTrainerTypeBadgeColor(trainer) {
-    const type = trainer._trainerType
+    const type = trainer.trainer_type
     if (type === 'fitness') return 'text-primary-light bg-primary/10'
     if (type === 'nutrition') return 'text-emerald-400 bg-emerald-500/10'
     if (type === 'both') return 'text-amber-400 bg-amber-500/10'
@@ -225,7 +223,7 @@ export default function AdminTrainers() {
 
   const filteredTrainers = trainers.filter((t) => {
     if (filter === 'all') return true
-    return (t._trainerType || 'fitness') === filter
+    return (t.trainer_type || 'fitness') === filter
   })
 
   const maxClients = Math.max(...trainers.map((t) => t.clientCount), 1)
@@ -389,24 +387,24 @@ export default function AdminTrainers() {
                     {/* Type Selector */}
                     <td className="px-6 py-4">
                       <select
-                        value={trainer._trainerType || 'fitness'}
+                        value={trainer.trainer_type || 'fitness'}
                         onChange={async (e) => {
                           const newType = e.target.value
 
                           // Optimistic update
                           setTrainers(prev => prev.map(t =>
-                            t.id === trainer.id ? { ...t, _trainerType: newType } : t
+                            t.id === trainer.id ? { ...t, trainer_type: newType } : t
                           ))
 
                           try {
-                            // Use RPC (SECURITY DEFINER) — guaranteed to work regardless of RLS
+                            // Try RPC first (SECURITY DEFINER, bypasses RLS)
                             const { error: rpcErr } = await supabase.rpc('set_trainer_type', {
                               target_user_id: trainer.id,
                               new_type: newType,
                             })
 
                             if (rpcErr) {
-                              console.error('set_trainer_type RPC error:', rpcErr)
+                              console.warn('RPC failed, trying direct upsert:', rpcErr.message)
                               // Fallback: direct upsert
                               const { error: upsertErr } = await supabase
                                 .from('trainer_profiles')
@@ -414,14 +412,26 @@ export default function AdminTrainers() {
                               if (upsertErr) throw upsertErr
                             }
 
-                            console.log('Trainer type saved:', trainer.id, '→', newType)
-                            setTypeSaved(trainer.id)
-                            setTimeout(() => setTypeSaved(null), 2000)
-                            fetchTrainers()
+                            // Verify save
+                            const { data: check } = await supabase
+                              .from('trainer_profiles')
+                              .select('trainer_type')
+                              .eq('user_id', trainer.id)
+                              .single()
+
+                            console.log('SAVED trainer_type:', trainer.full_name, '→', check?.trainer_type)
+
+                            if (check?.trainer_type !== newType) {
+                              console.error('SAVE FAILED! DB has:', check?.trainer_type, 'expected:', newType)
+                              setError(`Failed to save. DB shows: ${check?.trainer_type}`)
+                            } else {
+                              setTypeSaved(trainer.id)
+                              setTimeout(() => setTypeSaved(null), 2000)
+                            }
                           } catch (err) {
                             console.error('Failed to update trainer type:', err)
-                            setError('Failed to update trainer type: ' + err.message)
-                            fetchTrainers() // revert optimistic update
+                            setError('Failed: ' + err.message)
+                            fetchTrainers()
                           }
                         }}
                         className="bg-[#1a1225] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 focus:ring-1 focus:ring-primary/40 focus:outline-none cursor-pointer transition-all"
