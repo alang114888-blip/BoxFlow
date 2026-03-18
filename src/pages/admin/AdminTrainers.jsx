@@ -87,18 +87,18 @@ export default function AdminTrainers() {
       setTrainers(trainersWithData)
 
       // Compute stats
-      const total = trainersWithCounts.length
+      const total = trainersWithData.length
       setActiveCount(total)
 
       const now = new Date()
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const newCount = trainersWithCounts.filter(
+      const newCount = trainersWithData.filter(
         (t) => new Date(t.created_at) >= monthStart
       ).length
       setNewThisMonth(newCount)
 
       if (total > 0) {
-        const totalClients = trainersWithCounts.reduce((sum, t) => sum + t.clientCount, 0)
+        const totalClients = trainersWithData.reduce((sum, t) => sum + t.clientCount, 0)
         setAvgClients(Math.round((totalClients / total) * 10) / 10)
       } else {
         setAvgClients(0)
