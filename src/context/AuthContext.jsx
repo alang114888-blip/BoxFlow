@@ -25,6 +25,7 @@ export function AuthProvider({ children }) {
       .maybeSingle()
 
     if (existingProfile) {
+      console.log('AuthContext: profile found, is_onboarded:', existingProfile.is_onboarded, 'role:', existingProfile.role)
       // Clear failed attempts on successful login
       if (existingProfile.failed_attempts > 0) {
         await supabase.rpc('clear_failed_login', { user_email: existingProfile.email })
@@ -58,6 +59,7 @@ export function AuthProvider({ children }) {
       .select()
       .single()
 
+    console.log('AuthContext: new profile created, is_onboarded:', newProfile?.is_onboarded, 'role:', newProfile?.role)
     setProfile(newProfile)
     setLoading(false)
   }
