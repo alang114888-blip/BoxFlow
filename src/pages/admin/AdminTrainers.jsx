@@ -76,6 +76,7 @@ export default function AdminTrainers() {
 
           // Flatten trainer_type for easy access
           const trainerType = trainer.trainer_profiles?.[0]?.trainer_type || null
+          console.log('Trainer:', trainer.full_name, '| trainer_profiles:', JSON.stringify(trainer.trainer_profiles), '| type:', trainerType)
 
           return {
             ...trainer,
@@ -207,26 +208,24 @@ export default function AdminTrainers() {
   }
 
   function getTrainerTypeLabel(trainer) {
-    const type = trainer.trainer_profiles?.[0]?.trainer_type
-    if (!type) return 'N/A'
+    const type = trainer._trainerType
     if (type === 'fitness') return 'Personal Trainer'
     if (type === 'nutrition') return 'Nutritionist'
     if (type === 'both') return 'Both'
-    return type
+    return 'Personal Trainer'
   }
 
   function getTrainerTypeBadgeColor(trainer) {
-    const type = trainer.trainer_profiles?.[0]?.trainer_type
+    const type = trainer._trainerType
     if (type === 'fitness') return 'text-primary-light bg-primary/10'
     if (type === 'nutrition') return 'text-emerald-400 bg-emerald-500/10'
     if (type === 'both') return 'text-amber-400 bg-amber-500/10'
-    return 'text-slate-400 bg-white/5'
+    return 'text-primary-light bg-primary/10'
   }
 
   const filteredTrainers = trainers.filter((t) => {
     if (filter === 'all') return true
-    const type = t.trainer_profiles?.[0]?.trainer_type
-    return type === filter
+    return (t._trainerType || 'fitness') === filter
   })
 
   const maxClients = Math.max(...trainers.map((t) => t.clientCount), 1)
