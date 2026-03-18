@@ -166,6 +166,21 @@ export default function AdminTrainers() {
       })
       if (otpError) throw otpError
 
+      // Pre-create trainer_profiles if trainer already exists
+      const { data: existingTrainer } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', inviteEmail)
+        .eq('role', 'trainer')
+        .maybeSingle()
+
+      if (existingTrainer) {
+        await supabase.rpc('set_trainer_type', {
+          target_user_id: existingTrainer.id,
+          new_type: trainerType,
+        }).catch(() => {})
+      }
+
       setInviteSuccess(true)
       setInviteEmail('')
       setInviteName('')

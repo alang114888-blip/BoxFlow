@@ -65,6 +65,15 @@ export default function Onboarding() {
 
       if (profileErr) throw profileErr
 
+      // For trainers: create trainer_profiles record if not exists
+      if (profile?.role === 'trainer') {
+        const trainerType = user.user_metadata?.trainer_type || 'fitness'
+        await supabase.from('trainer_profiles').upsert(
+          { user_id: user.id, trainer_type: trainerType },
+          { onConflict: 'user_id' }
+        ).catch(() => {})
+      }
+
       // Resolve pending invites → create trainer_clients
       const { data: pendingInvites } = await supabase
         .from('pending_invites')
