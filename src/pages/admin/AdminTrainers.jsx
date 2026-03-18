@@ -402,9 +402,23 @@ export default function AdminTrainers() {
                               throw upsertErr
                             }
 
-                            console.log('Trainer type saved:', trainer.id, '→', newType)
+                            // Verify the save worked
+                            const { data: verify } = await supabase
+                              .from('trainer_profiles')
+                              .select('trainer_type')
+                              .eq('user_id', trainer.id)
+                              .maybeSingle()
+                            console.log('Trainer type saved:', trainer.id, '→', newType, '| DB now:', verify?.trainer_type)
+
+                            if (verify?.trainer_type !== newType) {
+                              console.error('MISMATCH! Expected:', newType, 'Got:', verify?.trainer_type)
+                              setError(`Save failed: expected ${newType} but DB has ${verify?.trainer_type || 'null'}`)
+                            }
+
                             setTypeSaved(trainer.id)
                             setTimeout(() => setTypeSaved(null), 2000)
+                            // Refresh from DB to confirm
+                            fetchTrainers()
                           } catch (err) {
                             console.error('Failed to update trainer type:', err)
                             setError('Failed to update trainer type: ' + err.message)

@@ -19,13 +19,23 @@ const allTabs = [
 export default function TrainerLayout() {
   const { profile } = useAuth()
   const navigate = useNavigate()
-  const [trainerType, setTrainerType] = useState(null)
-  const [loadingType, setLoadingType] = useState(true)
+  // Use trainer_type from AuthContext profile if available (instant load)
+  const [trainerType, setTrainerType] = useState(() => profile?.trainer_type || null)
+  const [loadingType, setLoadingType] = useState(!profile?.trainer_type)
   // Mode toggle for 'both' trainers
   const [activeMode, setActiveMode] = useState(() => localStorage.getItem('bf_trainer_mode') || 'fitness')
 
   useEffect(() => {
     if (!profile?.id) return
+
+    // If AuthContext already has trainer_type, use it immediately
+    if (profile.trainer_type && !trainerType) {
+      setTrainerType(profile.trainer_type)
+      if (profile.trainer_type !== 'both') setActiveMode(profile.trainer_type)
+      setLoadingType(false)
+    }
+
+    // Always verify from DB
     supabase
       .from('trainer_profiles')
       .select('trainer_type')
@@ -34,7 +44,7 @@ export default function TrainerLayout() {
       .then(({ data, error }) => {
         if (error) console.error('TrainerLayout: fetch trainer_type error:', error)
         const type = data?.trainer_type || 'fitness'
-        console.log('TrainerLayout: trainer_type from DB:', data?.trainer_type, '→ using:', type)
+        console.log('TrainerLayout: trainer_type from DB:', data?.trainer_type, '| AuthContext:', profile.trainer_type, '→ using:', type)
         setTrainerType(type)
         // If not 'both', force the mode to match type
         if (type !== 'both') setActiveMode(type)

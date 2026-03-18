@@ -29,7 +29,19 @@ export function AuthProvider({ children }) {
       if (existingProfile.failed_attempts > 0) {
         await supabase.rpc('clear_failed_login', { user_email: existingProfile.email })
       }
-      setProfile(existingProfile)
+
+      // For trainers, also fetch trainer_type
+      let trainerType = null
+      if (existingProfile.role === 'trainer') {
+        const { data: tp } = await supabase
+          .from('trainer_profiles')
+          .select('trainer_type')
+          .eq('user_id', existingProfile.id)
+          .maybeSingle()
+        trainerType = tp?.trainer_type || 'fitness'
+      }
+
+      setProfile({ ...existingProfile, trainer_type: trainerType })
       setLoading(false)
       return
     }
