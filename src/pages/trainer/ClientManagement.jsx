@@ -172,30 +172,35 @@ export default function ClientManagement() {
           invite_accepted: true,
         })
         if (insertErr) throw insertErr
+
+        setInviteSuccess(true)
+        setInviteEmail('')
+        fetchClients()
       } else {
-        // New client → store as pending invite (no client_id yet)
-        const { error: inviteErr } = await supabase.from('pending_invites').insert({
-          trainer_id: profile.id,
-          email: inviteEmail,
+        // New client → use Edge Function (has service role key)
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+        const { data: { session } } = await supabase.auth.getSession()
+
+        const res = await fetch(`${supabaseUrl}/functions/v1/invite-client`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: inviteEmail,
+            trainer_id: profile.id,
+          }),
         })
-        if (inviteErr) throw inviteErr
+
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error || 'Failed to send invite')
+
+        console.log('Invite sent via Edge Function:', inviteEmail)
+        setInviteSuccess(true)
+        setInviteEmail('')
+        fetchClients()
       }
-
-      // Send magic link invite
-      const { error: authErr } = await supabase.auth.signInWithOtp({
-        email: inviteEmail,
-        options: {
-          data: { invited_by_trainer: profile.id, role: 'client' },
-          shouldCreateUser: true,
-          emailRedirectTo: SITE_URL + '/onboarding',
-        },
-      })
-
-      if (authErr) throw authErr
-
-      setInviteSuccess(true)
-      setInviteEmail('')
-      fetchClients()
     } catch (err) {
       console.error('Invite error:', err)
       setInviteError(err.message)
@@ -476,10 +481,14 @@ export default function ClientManagement() {
                             <button
                               onClick={async () => {
                                 try {
-                                  await supabase.auth.signInWithOtp({
-                                    email: clientEmail,
-                                    options: { data: { invited_by_trainer: profile.id, role: 'client' }, shouldCreateUser: true, emailRedirectTo: SITE_URL + '/onboarding' },
+                                  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+                                  const { data: { session } } = await supabase.auth.getSession()
+                                  const res = await fetch(`${supabaseUrl}/functions/v1/invite-client`, {
+                                    method: 'POST',
+                                    headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ email: clientEmail, trainer_id: profile.id }),
                                   })
+                                  if (!res.ok) { const r = await res.json(); throw new Error(r.error) }
                                   const pendingId = client.id.replace('pending-', '')
                                   await supabase.from('pending_invites').update({ created_at: new Date().toISOString() }).eq('id', pendingId)
                                   setResendSuccess(clientEmail)
