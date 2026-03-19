@@ -76,8 +76,32 @@ export default function Onboarding() {
         return
       }
 
-      // No tokens at all — wait for AuthContext
+      // Method 3: PKCE code (?code=...)
+      const code = searchParams.get('code')
+      if (code) {
+        console.log('Onboarding: found PKCE code in query')
+        const { error: codeErr } = await supabase.auth.exchangeCodeForSession(code)
+        if (codeErr) {
+          console.error('Onboarding: exchangeCode error:', codeErr.message)
+          setError('Invalid or expired invite link.')
+        } else {
+          console.log('Onboarding: PKCE code exchanged for session')
+          setSessionReady(true)
+        }
+        setVerifying(false)
+        return
+      }
+
+      // No tokens at all — wait for AuthContext to catch up
+      // (onAuthStateChange might fire SIGNED_IN from another source)
       console.log('Onboarding: no tokens in URL, waiting for auth...')
+      // Give AuthContext 2 seconds to establish session
+      await new Promise(r => setTimeout(r, 2000))
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        console.log('Onboarding: session found after wait')
+        setSessionReady(true)
+      }
       setVerifying(false)
     }
 
@@ -97,15 +121,43 @@ export default function Onboarding() {
   const hasTokenInUrl = window.location.hash.includes('access_token') || searchParams.get('token_hash')
   if (!user && !hasTokenInUrl && !sessionReady) return <Navigate to="/login" replace />
 
-  // Token failed and no user → show error
+  // Token failed and no user → show friendly expired page
   if (!user && !sessionReady && error) {
     return (
-      <div className="min-h-screen bg-[#0f0a19] flex items-center justify-center px-4">
-        <div className="text-center">
-          <span className="material-symbols-outlined text-red-400 text-5xl mb-3">error</span>
-          <h2 className="text-xl font-bold text-white mb-2">Link Expired</h2>
-          <p className="text-slate-400 text-sm mb-4">{error || 'This invite link is no longer valid.'}</p>
-          <button onClick={() => navigate('/login')} className="text-primary font-semibold hover:underline">Go to Login</button>
+      <div className="min-h-screen bg-[#0f172a] text-slate-100 relative overflow-hidden flex items-center justify-center p-4">
+        <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
+        <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a]/80 via-[#0f172a]/95 to-[#0f172a] z-0" />
+
+        <div className="z-10 w-full max-w-md flex flex-col items-center">
+          <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mb-4">
+            <span className="material-symbols-outlined text-red-400 text-4xl">link_off</span>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Invite Link Expired</h2>
+          <p className="text-slate-400 text-sm text-center mb-6">
+            This invite link is no longer valid. Links can only be used once and expire after 24 hours.
+          </p>
+
+          <div className="w-full p-6 rounded-xl space-y-4" style={{ background: 'rgba(30, 41, 59, 0.7)', backdropFilter: 'blur(12px)', border: '1px solid rgba(124, 59, 237, 0.2)' }}>
+            <p className="text-sm text-slate-300 text-center">What would you like to do?</p>
+
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full bg-gradient-to-r from-primary to-purple-500 text-white font-semibold py-3.5 rounded-lg shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[20px]">login</span>
+              Sign In (if you already have a password)
+            </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-700" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#1e293b] px-2 text-slate-500">or</span></div>
+            </div>
+
+            <p className="text-xs text-slate-400 text-center">
+              Ask your trainer to send a new invite from their BoxFlow dashboard → Clients → Resend Invite
+            </p>
+          </div>
         </div>
       </div>
     )
