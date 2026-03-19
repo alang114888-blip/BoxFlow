@@ -13,35 +13,76 @@ export default function Onboarding() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [verifying, setVerifying] = useState(false)
-  const [verified, setVerified] = useState(false)
+  const [verifying, setVerifying] = useState(true) // start as true
+  const [sessionReady, setSessionReady] = useState(false)
 
-  // Step 1: verify token_hash from URL if present
-  const tokenHash = searchParams.get('token_hash')
-  const tokenType = searchParams.get('type')
-
+  // Handle ALL token types: hash fragment (#access_token) + query param (?token_hash)
   useEffect(() => {
-    if (!tokenHash) return
-    if (user) { setVerified(true); return } // already have session
-
-    async function verifyToken() {
-      setVerifying(true)
-      console.log('Onboarding: verifying token_hash, type:', tokenType)
-      const { data, error: verifyErr } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: tokenType === 'invite' ? 'invite' : 'magiclink',
-      })
-      if (verifyErr) {
-        console.error('Onboarding: token verification failed:', verifyErr.message)
-        setError('Invalid or expired link. Please ask your trainer to send a new invite.')
-      } else {
-        console.log('Onboarding: token verified, session created')
-        setVerified(true)
+    async function processTokens() {
+      // Already have a session
+      if (user) {
+        console.log('Onboarding: user already authenticated')
+        setSessionReady(true)
+        setVerifying(false)
+        return
       }
+
+      // Method 1: Hash fragment (#access_token=...&type=invite)
+      const hash = window.location.hash.substring(1)
+      if (hash) {
+        const hashParams = new URLSearchParams(hash)
+        const accessToken = hashParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token')
+        const type = hashParams.get('type')
+
+        if (accessToken) {
+          console.log('Onboarding: found access_token in hash, type:', type)
+          const { data, error: sessErr } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          })
+          if (sessErr) {
+            console.error('Onboarding: setSession error:', sessErr.message)
+            setError('Invalid or expired invite link.')
+          } else if (data.session) {
+            console.log('Onboarding: session set from hash token')
+            setSessionReady(true)
+            // Clear the hash from URL
+            window.history.replaceState(null, '', window.location.pathname)
+          }
+          setVerifying(false)
+          return
+        }
+      }
+
+      // Method 2: Query param (?token_hash=...&type=invite)
+      const tokenHash = searchParams.get('token_hash')
+      const tokenType = searchParams.get('type')
+
+      if (tokenHash) {
+        console.log('Onboarding: found token_hash in query, type:', tokenType)
+        const { error: verifyErr } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: tokenType === 'invite' ? 'invite' : 'magiclink',
+        })
+        if (verifyErr) {
+          console.error('Onboarding: verifyOtp error:', verifyErr.message)
+          setError('Invalid or expired invite link.')
+        } else {
+          console.log('Onboarding: token verified')
+          setSessionReady(true)
+        }
+        setVerifying(false)
+        return
+      }
+
+      // No tokens at all — wait for AuthContext
+      console.log('Onboarding: no tokens in URL, waiting for auth...')
       setVerifying(false)
     }
-    verifyToken()
-  }, [tokenHash, tokenType, user])
+
+    processTokens()
+  }, [user, searchParams])
 
   // Show spinner while verifying token or loading auth
   if (authLoading || verifying) {
@@ -52,11 +93,12 @@ export default function Onboarding() {
     )
   }
 
-  // No token and no user → go to login
-  if (!user && !tokenHash) return <Navigate to="/login" replace />
+  // No token, no user, no session → go to login
+  const hasTokenInUrl = window.location.hash.includes('access_token') || searchParams.get('token_hash')
+  if (!user && !hasTokenInUrl && !sessionReady) return <Navigate to="/login" replace />
 
   // Token failed and no user → show error
-  if (!user && tokenHash && !verifying) {
+  if (!user && !sessionReady && error) {
     return (
       <div className="min-h-screen bg-[#0f0a19] flex items-center justify-center px-4">
         <div className="text-center">
