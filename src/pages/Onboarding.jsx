@@ -61,16 +61,29 @@ export default function Onboarding() {
 
       if (tokenHash) {
         console.log('Onboarding: found token_hash in query, type:', tokenType)
-        const { error: verifyErr } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: tokenType === 'invite' ? 'invite' : 'magiclink',
-        })
-        if (verifyErr) {
-          console.error('Onboarding: verifyOtp error:', verifyErr.message)
+
+        // Try the specified type first, then fallback to other types
+        const typesToTry = tokenType === 'invite'
+          ? ['invite', 'magiclink', 'email']
+          : ['magiclink', 'invite', 'email']
+
+        let success = false
+        for (const t of typesToTry) {
+          const { data: otpData, error: verifyErr } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: t,
+          })
+          if (!verifyErr && otpData?.session) {
+            console.log('Onboarding: token verified with type:', t)
+            setSessionReady(true)
+            success = true
+            break
+          }
+          console.log('Onboarding: verifyOtp type', t, 'failed:', verifyErr?.message)
+        }
+
+        if (!success) {
           setError('Invalid or expired invite link.')
-        } else {
-          console.log('Onboarding: token verified')
-          setSessionReady(true)
         }
         setVerifying(false)
         return
