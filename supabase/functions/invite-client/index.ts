@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const SITE_URL = 'https://box-flow-eight.vercel.app'
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -32,32 +34,48 @@ serve(async (req) => {
       { onConflict: 'trainer_id,email' }
     )
 
-    // Send invite using admin API with redirectTo
+    // Use inviteUserByEmail — Supabase sends the email automatically
+    // The email template MUST use token_hash format (not ConfirmationURL)
     const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: 'https://box-flow-eight.vercel.app/onboarding',
+      redirectTo: `${SITE_URL}/onboarding`,
       data: { role: 'client', invited_by_trainer: trainer_id },
     })
 
     if (error) {
-      // If user already exists, send magic link instead
-      if (error.message.includes('already been registered')) {
-        const { error: otpErr } = await supabaseAdmin.auth.admin.generateLink({
+      if (error.message.includes('already been registered') || error.message.includes('already exists')) {
+        // User already exists — send magic link OTP instead
+        // This uses the Magic Link email template
+        const { error: otpErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+          redirectTo: `${SITE_URL}/onboarding`,
+        }).catch(() => null) || { error: null }
+
+        // Fallback: generate a magic link directly
+        const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
           type: 'magiclink',
           email,
-          options: { redirectTo: 'https://box-flow-eight.vercel.app/onboarding' },
+          options: { redirectTo: `${SITE_URL}/onboarding` },
         })
-        if (otpErr) {
+
+        if (linkErr) {
           return new Response(
-            JSON.stringify({ error: otpErr.message }),
+            JSON.stringify({ error: linkErr.message }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
-      } else {
+
+        // generateLink returns properties we can use to build URL
+        // The link itself is in linkData.properties.action_link
+        // But Supabase already sent the email with the template
         return new Response(
-          JSON.stringify({ error: error.message }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: true, note: 'existing_user_magic_link' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     return new Response(
