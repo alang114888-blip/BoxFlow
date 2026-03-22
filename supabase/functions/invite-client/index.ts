@@ -34,12 +34,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Store pending invite
-    const { error: pendingErr } = await supabaseAdmin.from('pending_invites').upsert(
-      { email: email.toLowerCase(), trainer_id },
-      { onConflict: 'trainer_id,email' }
+    // Store pending invite (insert, ignore duplicates)
+    const { error: pendingErr } = await supabaseAdmin.from('pending_invites').insert(
+      { email: email.toLowerCase(), trainer_id }
     )
-    log(`[invite] pending_invites upsert: ${pendingErr ? 'FAILED: ' + pendingErr.message : 'OK'}`)
+    log(`[invite] pending_invites insert: ${pendingErr ? 'SKIPPED: ' + pendingErr.message : 'OK'}`)
 
     // Try invite (new user) first
     log('[invite] Trying inviteUserByEmail...')
