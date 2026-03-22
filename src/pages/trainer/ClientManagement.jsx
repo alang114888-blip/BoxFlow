@@ -194,16 +194,14 @@ export default function ClientManagement() {
         console.log('Invite: session exists=', !!session, 'token length=', session?.access_token?.length)
         console.log('Invite: email=', inviteEmail, 'trainer_id=', profile.id)
 
-        if (!session?.access_token) {
-          throw new Error('No active session. Please log in again.')
-        }
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
         let res
         try {
           res = await fetch(`${supabaseUrl}/functions/v1/invite-client`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${session.access_token}`,
+              'Authorization': `Bearer ${anonKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -522,10 +520,10 @@ export default function ClientManagement() {
                               onClick={async () => {
                                 try {
                                   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-                                  const { data: { session } } = await supabase.auth.getSession()
+                                  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
                                   const res = await fetch(`${supabaseUrl}/functions/v1/invite-client`, {
                                     method: 'POST',
-                                    headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                                    headers: { 'Authorization': `Bearer ${anonKey}`, 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ email: clientEmail, trainer_id: profile.id }),
                                   })
                                   if (!res.ok) { const r = await res.json(); throw new Error(r.error) }
