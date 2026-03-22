@@ -182,24 +182,48 @@ export default function ClientManagement() {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
         const { data: { session } } = await supabase.auth.getSession()
 
-        const res = await fetch(`${supabaseUrl}/functions/v1/invite-client`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: inviteEmail,
-            trainer_id: profile.id,
-          }),
-        })
+        console.log('Invite: supabaseUrl=', supabaseUrl)
+        console.log('Invite: session exists=', !!session, 'token length=', session?.access_token?.length)
+        console.log('Invite: email=', inviteEmail, 'trainer_id=', profile.id)
 
-        const result = await res.json()
-        console.log('Edge Function response:', result)
-        if (result.logs) console.log('Edge Function logs:', result.logs)
+        if (!session?.access_token) {
+          throw new Error('No active session. Please log in again.')
+        }
+
+        let res
+        try {
+          res = await fetch(`${supabaseUrl}/functions/v1/invite-client`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: inviteEmail,
+              trainer_id: profile.id,
+            }),
+          })
+        } catch (fetchErr) {
+          console.error('Invite: fetch failed:', fetchErr)
+          throw new Error('Network error calling invite function: ' + fetchErr.message)
+        }
+
+        let result
+        try {
+          result = await res.json()
+        } catch (jsonErr) {
+          const text = await res.text().catch(() => '')
+          console.error('Invite: response not JSON, status:', res.status, 'body:', text)
+          throw new Error(`Invite function returned status ${res.status}: ${text.substring(0, 200)}`)
+        }
+
+        console.log('Edge Function response:', JSON.stringify(result))
+        if (result.logs) console.log('Edge Function logs:', result.logs.join('\n'))
+
         if (!res.ok) {
-          await logError('invite_client', result.error, { email: inviteEmail, trainer_id: profile.id, edgeLogs: result.logs })
-          throw new Error(result.error || 'Failed to send invite')
+          const errMsg = result.error || `Failed (status ${res.status})`
+          await logError('invite_client', errMsg, { email: inviteEmail, trainer_id: profile.id, edgeLogs: result.logs })
+          throw new Error(errMsg)
         }
 
         logAction('invite_sent', { email: inviteEmail, type: result.type })
