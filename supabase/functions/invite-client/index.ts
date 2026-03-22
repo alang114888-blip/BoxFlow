@@ -34,52 +34,29 @@ serve(async (req) => {
       { onConflict: 'trainer_id,email' }
     )
 
-    // Check if user already exists in auth
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-    const userExists = existingUsers?.users?.some(
-      (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+    // Try invite (new user) first
+    const { error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      email.toLowerCase(),
+      {
+        redirectTo: `${SITE_URL}/onboarding`,
+        data: { role: 'client', invited_by_trainer: trainer_id },
+      }
     )
 
-    if (userExists) {
-      // Existing user → generate magic link and return it
-      // The Magic Link email template will be used
-      const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: email.toLowerCase(),
-        options: {
-          redirectTo: `${SITE_URL}/onboarding`,
-        },
-      })
-
-      if (linkErr) {
-        return new Response(
-          JSON.stringify({ error: linkErr.message }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      // generateLink returns the action_link with token
-      // We need to extract hashed_token and build our own URL
-      const actionLink = linkData?.properties?.action_link || ''
-      const hashedToken = linkData?.properties?.hashed_token || ''
-
-      // Build our custom URL with token_hash
-      const onboardingUrl = `${SITE_URL}/onboarding?token_hash=${hashedToken}&type=magiclink`
-
-      // Send email manually using Supabase's internal mail
-      // Actually, generateLink with type 'magiclink' does NOT send email
-      // We need to use signInWithOtp for existing users
+    if (inviteErr) {
+      // User already exists → send magic link OTP instead
       const { error: otpErr } = await supabaseAdmin.auth.signInWithOtp({
         email: email.toLowerCase(),
         options: {
           emailRedirectTo: `${SITE_URL}/onboarding`,
           data: { role: 'client', invited_by_trainer: trainer_id },
+          shouldCreateUser: false,
         },
       })
 
       if (otpErr) {
         return new Response(
-          JSON.stringify({ error: otpErr.message }),
+          JSON.stringify({ error: `Invite failed: ${inviteErr.message}. OTP fallback: ${otpErr.message}` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -90,28 +67,13 @@ serve(async (req) => {
       )
     }
 
-    // New user → use inviteUserByEmail
-    // This creates the auth user AND sends the Invite User email template
-    // The template MUST use: {{ .SiteURL }}/onboarding?token_hash={{ .TokenHash }}&type=invite
-    const { error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${SITE_URL}/onboarding`,
-      data: { role: 'client', invited_by_trainer: trainer_id },
-    })
-
-    if (inviteErr) {
-      return new Response(
-        JSON.stringify({ error: inviteErr.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
     return new Response(
       JSON.stringify({ success: true, type: 'new_user' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: String(err) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

@@ -353,7 +353,7 @@ export default function AdminClients() {
                           {client.trainer.full_name || client.trainer.email}
                         </span>
                       ) : (
-                        <span className="text-slate-600 italic">Unassigned</span>
+                        <span className="text-slate-500 italic text-xs">No trainer assigned</span>
                       )}
                     </td>
 
