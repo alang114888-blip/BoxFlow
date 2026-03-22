@@ -79,11 +79,13 @@ serve(async (req) => {
 
         if (otp2Err) {
           // Log error to error_logs table
-          await supabaseAdmin.from('error_logs').insert({
-            action: 'invite_client',
-            error_message: `All methods failed. invite: ${inviteErr.message}, otp: ${otpErr.message}, otp2: ${otp2Err.message}`,
-            error_details: { email, trainer_id, logs },
-          }).catch(() => {})
+          try {
+            await supabaseAdmin.from('error_logs').insert({
+              action: 'invite_client',
+              error_message: `All methods failed. invite: ${inviteErr.message}, otp: ${otpErr.message}, otp2: ${otp2Err.message}`,
+              error_details: { email, trainer_id, logs },
+            })
+          } catch (_) { /* ignore logging errors */ }
 
           return new Response(
             JSON.stringify({ error: otp2Err.message, logs }),
