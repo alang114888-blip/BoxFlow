@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase, SITE_URL } from '../../lib/supabase'
+import { logError, logAction } from '../../lib/logger'
 import { useAuth } from '../../hooks/useAuth'
 import {
   MagnifyingGlassIcon,
@@ -194,9 +195,14 @@ export default function ClientManagement() {
         })
 
         const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'Failed to send invite')
+        console.log('Edge Function response:', result)
+        if (result.logs) console.log('Edge Function logs:', result.logs)
+        if (!res.ok) {
+          await logError('invite_client', result.error, { email: inviteEmail, trainer_id: profile.id, edgeLogs: result.logs })
+          throw new Error(result.error || 'Failed to send invite')
+        }
 
-        console.log('Invite sent via Edge Function:', inviteEmail)
+        logAction('invite_sent', { email: inviteEmail, type: result.type })
         setInviteSuccess(true)
         setInviteEmail('')
         fetchClients()

@@ -13,12 +13,18 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  const logs: string[] = []
+  const log = (msg: string) => { console.log(msg); logs.push(msg) }
+
   try {
     const { email, trainer_id } = await req.json()
+    log(`[invite] Request: email=${email}, trainer_id=${trainer_id}`)
+    log(`[invite] SUPABASE_URL exists: ${!!Deno.env.get('SUPABASE_URL')}`)
+    log(`[invite] SERVICE_ROLE_KEY exists: ${!!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`)
 
     if (!email || !trainer_id) {
       return new Response(
-        JSON.stringify({ error: 'email and trainer_id are required' }),
+        JSON.stringify({ error: 'email and trainer_id are required', logs }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -29,22 +35,26 @@ serve(async (req) => {
     )
 
     // Store pending invite
-    await supabaseAdmin.from('pending_invites').upsert(
+    const { error: pendingErr } = await supabaseAdmin.from('pending_invites').upsert(
       { email: email.toLowerCase(), trainer_id },
       { onConflict: 'trainer_id,email' }
     )
+    log(`[invite] pending_invites upsert: ${pendingErr ? 'FAILED: ' + pendingErr.message : 'OK'}`)
 
     // Try invite (new user) first
-    const { error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    log('[invite] Trying inviteUserByEmail...')
+    const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email.toLowerCase(),
       {
         redirectTo: `${SITE_URL}/onboarding`,
         data: { role: 'client', invited_by_trainer: trainer_id },
       }
     )
+    log(`[invite] inviteUserByEmail result: ${inviteErr ? 'FAILED: ' + inviteErr.message : 'OK, user=' + inviteData?.user?.id}`)
 
     if (inviteErr) {
-      // User already exists → send magic link OTP instead
+      // User already exists → send magic link OTP
+      log('[invite] Trying signInWithOtp fallback...')
       const { error: otpErr } = await supabaseAdmin.auth.signInWithOtp({
         email: email.toLowerCase(),
         options: {
@@ -53,27 +63,51 @@ serve(async (req) => {
           shouldCreateUser: false,
         },
       })
+      log(`[invite] signInWithOtp result: ${otpErr ? 'FAILED: ' + otpErr.message : 'OK'}`)
 
       if (otpErr) {
-        return new Response(
-          JSON.stringify({ error: `Invite failed: ${inviteErr.message}. OTP fallback: ${otpErr.message}` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+        // Last resort: try with shouldCreateUser: true
+        log('[invite] Trying signInWithOtp with shouldCreateUser=true...')
+        const { error: otp2Err } = await supabaseAdmin.auth.signInWithOtp({
+          email: email.toLowerCase(),
+          options: {
+            emailRedirectTo: `${SITE_URL}/onboarding`,
+            data: { role: 'client', invited_by_trainer: trainer_id },
+            shouldCreateUser: true,
+          },
+        })
+        log(`[invite] signInWithOtp(create) result: ${otp2Err ? 'FAILED: ' + otp2Err.message : 'OK'}`)
+
+        if (otp2Err) {
+          // Log error to error_logs table
+          await supabaseAdmin.from('error_logs').insert({
+            action: 'invite_client',
+            error_message: `All methods failed. invite: ${inviteErr.message}, otp: ${otpErr.message}, otp2: ${otp2Err.message}`,
+            error_details: { email, trainer_id, logs },
+          }).catch(() => {})
+
+          return new Response(
+            JSON.stringify({ error: otp2Err.message, logs }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
       }
 
       return new Response(
-        JSON.stringify({ success: true, type: 'existing_user' }),
+        JSON.stringify({ success: true, type: 'existing_user', logs }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    log('[invite] Success: new user invited')
     return new Response(
-      JSON.stringify({ success: true, type: 'new_user' }),
+      JSON.stringify({ success: true, type: 'new_user', logs }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
+    log(`[invite] EXCEPTION: ${String(err)}`)
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: String(err), logs }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
