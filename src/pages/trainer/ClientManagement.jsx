@@ -137,32 +137,40 @@ export default function ClientManagement() {
       setInviteError(null)
       setInviteSuccess(false)
 
+      console.log('=== INVITE START ===', inviteEmail)
+
       // Check if already invited
-      const { data: existingInvite } = await supabase
+      const { data: existingInvite, error: piErr } = await supabase
         .from('pending_invites')
         .select('id')
         .eq('trainer_id', profile.id)
         .eq('email', inviteEmail)
         .maybeSingle()
 
-      const { data: existingTC } = await supabase
+      console.log('Check pending_invites:', existingInvite, piErr?.message)
+
+      const { data: existingTC, error: tcErr } = await supabase
         .from('trainer_clients')
         .select('id')
         .eq('trainer_id', profile.id)
         .eq('invited_email', inviteEmail)
         .maybeSingle()
 
+      console.log('Check trainer_clients:', existingTC, tcErr?.message)
+
       if (existingInvite || existingTC) {
         setInviteError('This email has already been invited.')
         return
       }
 
-      // Check if client already has a profile
-      const { data: existingProfile } = await supabase
+      // Check if client already has a profile (may fail due to RLS — that's ok)
+      const { data: existingProfile, error: profErr } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', inviteEmail)
         .maybeSingle()
+
+      console.log('Check profiles:', existingProfile, profErr?.message)
 
       if (existingProfile) {
         // Client already exists → link directly
@@ -232,8 +240,10 @@ export default function ClientManagement() {
         fetchClients()
       }
     } catch (err) {
-      console.error('Invite error:', err)
-      setInviteError(err.message)
+      console.error('=== INVITE FAILED ===', err)
+      console.error('Error name:', err.name, 'Message:', err.message)
+      console.error('Stack:', err.stack)
+      setInviteError(err.message || 'Unknown error')
     } finally {
       setInviting(false)
     }
