@@ -306,6 +306,18 @@ export default function ClientDashboard() {
           </div>
         </section>
       )}
+
+      {/* Habits */}
+      <section>
+        <Habits />
+      </section>
+
+      {/* Nutrition Features */}
+      {(trainerType === 'nutrition' || trainerType === 'both') && (
+        <section>
+          <NutritionHome />
+        </section>
+      )}
     </div>
   )
 }
@@ -324,13 +336,6 @@ function MacroBar({ label, current, target, color }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      {/* Habits - shown for all clients */}
-      <Habits />
-
-      {/* Nutrition Features - shown for nutrition/both trainer types */}
-      {(trainerType === 'nutrition' || trainerType === 'both') && (
-        <NutritionHome />
-      )}
     </div>
   )
 }
