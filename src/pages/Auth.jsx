@@ -7,12 +7,14 @@ export default function Auth() {
   const { user, profile, loading: authLoading, signInWithGoogle, signInWithPassword, resetPassword } = useAuth()
   const [searchParams] = useSearchParams()
   const invitedBy = searchParams.get('invited_by')
+  const invitedEmail = searchParams.get('email') ? decodeURIComponent(searchParams.get('email')) : ''
 
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(invitedEmail || '')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [phone, setPhone] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [mode, setMode] = useState(invitedBy ? 'signup' : 'password') // 'password' | 'signup' | 'forgot'
+  const [mode, setMode] = useState(invitedBy ? 'signup' : 'password')
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
@@ -59,7 +61,6 @@ export default function Auth() {
         await resetPassword(email)
         setSuccess(true)
       } else if (mode === 'signup') {
-        // Validate passwords match
         if (password !== confirmPassword) {
           setError('Passwords do not match')
           setSending(false)
@@ -67,6 +68,12 @@ export default function Auth() {
         }
         if (password.length < 6) {
           setError('Password must be at least 6 characters')
+          setSending(false)
+          return
+        }
+        const cleanPhone = phone.replace(/\s/g, '')
+        if (cleanPhone.length < 8) {
+          setError('Please enter a valid phone number')
           setSending(false)
           return
         }
@@ -79,13 +86,13 @@ export default function Auth() {
             data: {
               role: 'client',
               invited_by_trainer: invitedBy,
+              phone: cleanPhone,
             },
           },
         })
 
         if (signUpErr) throw signUpErr
 
-        // If user already exists (confirmed), try to sign in instead
         if (data?.user?.identities?.length === 0) {
           setError('An account with this email already exists. Please sign in instead.')
           setMode('password')
@@ -93,7 +100,14 @@ export default function Auth() {
           return
         }
 
-        // User created → will redirect to onboarding via the Navigate above
+        // Save phone to profile immediately
+        if (data?.user?.id) {
+          await supabase
+            .from('profiles')
+            .update({ phone: cleanPhone })
+            .eq('id', data.user.id)
+            .catch(() => {})
+        }
       } else {
         await signInWithPassword(email, password)
       }
@@ -114,12 +128,11 @@ export default function Auth() {
     ? (trainerName ? `${trainerName} invited you!` : 'Create Your Account')
     : isForgot ? 'Reset Password' : 'Welcome Back'
   const subheading = isSignup
-    ? 'Create your BoxFlow account to get started'
+    ? 'Set up your password and phone to get started'
     : null
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 relative overflow-hidden flex items-center justify-center p-4">
-      {/* Decorative Glows */}
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a]/80 via-[#0f172a]/95 to-[#0f172a] z-0" />
@@ -143,19 +156,47 @@ export default function Auth() {
           {!subheading && <div className="mb-6" />}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 ml-1">Email Address</label>
-              <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">mail</span>
-                <input
-                  type="email" required value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com" disabled={sending}
-                  className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3.5 pl-12 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all disabled:opacity-50"
-                />
+            {/* Email - read-only for invited clients, editable otherwise */}
+            {isSignup && invitedEmail ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300 ml-1">Email</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">mail</span>
+                  <div className="w-full bg-slate-900/30 border border-slate-700/50 rounded-lg py-3.5 pl-12 pr-4 text-slate-400">
+                    {invitedEmail}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300 ml-1">Email Address</label>
+                <div className="relative group">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">mail</span>
+                  <input
+                    type="email" required value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@example.com" disabled={sending}
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3.5 pl-12 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Phone (signup only) */}
+            {isSignup && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300 ml-1">Phone Number</label>
+                <div className="relative group">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">phone_iphone</span>
+                  <input
+                    type="tel" required value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+972 50 123 4567" disabled={sending}
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3.5 pl-12 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Password (login + signup) */}
             {(mode === 'password' || mode === 'signup') && (
@@ -189,7 +230,7 @@ export default function Auth() {
             )}
 
             {/* Confirm Password (signup only) */}
-            {mode === 'signup' && (
+            {isSignup && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-300 ml-1">Confirm Password</label>
                 <div className="relative group">
@@ -220,7 +261,7 @@ export default function Auth() {
 
             {/* Submit */}
             <button type="submit"
-              disabled={sending || !email || ((mode === 'password' || mode === 'signup') && !password) || (mode === 'signup' && !confirmPassword)}
+              disabled={sending || !email || ((mode === 'password' || mode === 'signup') && !password) || (mode === 'signup' && (!confirmPassword || !phone))}
               className="w-full bg-gradient-to-r from-primary to-purple-500 text-white font-semibold py-4 rounded-lg shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 mt-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
               {sending ? (
                 <span className="flex items-center justify-center gap-2">
@@ -243,7 +284,6 @@ export default function Auth() {
           <button type="button"
             onClick={async () => {
               try {
-                // Store invited_by in localStorage so onboarding can use it
                 if (invitedBy) localStorage.setItem('boxflow_invited_by', invitedBy)
                 await signInWithGoogle()
               } catch (err) { setError(err.message) }
@@ -268,7 +308,7 @@ export default function Auth() {
               Back to Sign In
             </button>
           )}
-          {mode === 'signup' && (
+          {mode === 'signup' && !invitedBy && (
             <button type="button"
               onClick={() => { setMode('password'); setError(null) }}
               className="text-primary font-semibold hover:underline decoration-primary/30 underline-offset-4">

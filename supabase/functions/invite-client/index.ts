@@ -109,8 +109,9 @@ serve(async (req) => {
       .single()
     const trainerName = trainerData?.full_name || 'Your trainer'
 
-    // Generate signup/login link
-    const signupLink = `${SITE_URL}/login?invited_by=${trainer_id}`
+    // Generate signup/login link with email
+    const encodedEmail = encodeURIComponent(email.toLowerCase())
+    const signupLink = `${SITE_URL}/login?invited_by=${trainer_id}&email=${encodedEmail}`
 
     // Send invite email via Gmail API
     const subject = `${trainerName} invited you to BoxFlow`
