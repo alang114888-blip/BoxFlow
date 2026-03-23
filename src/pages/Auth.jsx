@@ -100,13 +100,31 @@ export default function Auth() {
           return
         }
 
-        // Save phone to profile immediately
+        // Save phone + mark as onboarded
         if (data?.user?.id) {
           await supabase
             .from('profiles')
-            .update({ phone: cleanPhone })
+            .update({ phone: cleanPhone, is_onboarded: true })
             .eq('id', data.user.id)
             .catch(() => {})
+
+          // Create trainer_clients relationship
+          if (invitedBy) {
+            await supabase.from('trainer_clients').insert({
+              trainer_id: invitedBy,
+              client_id: data.user.id,
+              invited_email: email.toLowerCase(),
+              invite_accepted: true,
+            }).catch(() => {})
+
+            // Clean up pending invite
+            await supabase
+              .from('pending_invites')
+              .delete()
+              .eq('email', email.toLowerCase())
+              .eq('trainer_id', invitedBy)
+              .catch(() => {})
+          }
         }
       } else {
         await signInWithPassword(email, password)
