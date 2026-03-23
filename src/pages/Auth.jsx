@@ -1,16 +1,35 @@
-import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Navigate, useSearchParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
 export default function Auth() {
   const { user, profile, loading: authLoading, signInWithGoogle, signInWithPassword, resetPassword } = useAuth()
+  const [searchParams] = useSearchParams()
+  const invitedBy = searchParams.get('invited_by')
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [mode, setMode] = useState('password') // 'password' | 'magic' | 'forgot'
+  const [mode, setMode] = useState(invitedBy ? 'signup' : 'password') // 'password' | 'signup' | 'forgot'
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
+  const [trainerName, setTrainerName] = useState('')
+
+  // Fetch trainer name if invited
+  useEffect(() => {
+    if (!invitedBy) return
+    supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', invitedBy)
+      .single()
+      .then(({ data }) => {
+        if (data?.full_name) setTrainerName(data.full_name)
+      })
+  }, [invitedBy])
 
   if (authLoading) {
     return (
@@ -39,6 +58,42 @@ export default function Auth() {
       if (mode === 'forgot') {
         await resetPassword(email)
         setSuccess(true)
+      } else if (mode === 'signup') {
+        // Validate passwords match
+        if (password !== confirmPassword) {
+          setError('Passwords do not match')
+          setSending(false)
+          return
+        }
+        if (password.length < 6) {
+          setError('Password must be at least 6 characters')
+          setSending(false)
+          return
+        }
+
+        // Sign up new user
+        const { data, error: signUpErr } = await supabase.auth.signUp({
+          email: email.toLowerCase(),
+          password,
+          options: {
+            data: {
+              role: 'client',
+              invited_by_trainer: invitedBy,
+            },
+          },
+        })
+
+        if (signUpErr) throw signUpErr
+
+        // If user already exists (confirmed), try to sign in instead
+        if (data?.user?.identities?.length === 0) {
+          setError('An account with this email already exists. Please sign in instead.')
+          setMode('password')
+          setSending(false)
+          return
+        }
+
+        // User created → will redirect to onboarding via the Navigate above
       } else {
         await signInWithPassword(email, password)
       }
@@ -49,18 +104,24 @@ export default function Auth() {
     }
   }
 
-  const buttonLabel = { password: 'Sign In', forgot: 'Send Reset Link' }[mode]
-  const loadingLabel = { password: 'Signing in...', forgot: 'Sending...' }[mode]
-  const successMsg = { forgot: 'Password reset email sent! Check your inbox.' }[mode]
-  const heading = { password: 'Welcome Back', forgot: 'Reset Password' }[mode]
+  const isSignup = mode === 'signup'
+  const isForgot = mode === 'forgot'
+
+  const buttonLabel = isSignup ? 'Create Account' : isForgot ? 'Send Reset Link' : 'Sign In'
+  const loadingLabel = isSignup ? 'Creating account...' : isForgot ? 'Sending...' : 'Signing in...'
+  const successMsg = isForgot ? 'Password reset email sent! Check your inbox.' : null
+  const heading = isSignup
+    ? (trainerName ? `${trainerName} invited you!` : 'Create Your Account')
+    : isForgot ? 'Reset Password' : 'Welcome Back'
+  const subheading = isSignup
+    ? 'Create your BoxFlow account to get started'
+    : null
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 relative overflow-hidden flex items-center justify-center p-4">
       {/* Decorative Glows */}
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
-
-      {/* Background Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a]/80 via-[#0f172a]/95 to-[#0f172a] z-0" />
 
       <div className="z-10 w-full max-w-md flex flex-col items-center">
@@ -75,57 +136,50 @@ export default function Auth() {
           <p className="text-slate-400 mt-2 font-light">Train smarter, flow better</p>
         </div>
 
-        {/* Login Card */}
+        {/* Card */}
         <div className="w-full p-8 rounded-xl shadow-2xl" style={{ background: 'rgba(30, 41, 59, 0.7)', backdropFilter: 'blur(12px)', border: '1px solid rgba(124, 59, 237, 0.2)' }}>
-          <h2 className="text-2xl font-semibold text-white mb-6 text-center">{heading}</h2>
+          <h2 className="text-2xl font-semibold text-white mb-1 text-center">{heading}</h2>
+          {subheading && <p className="text-sm text-slate-400 text-center mb-6">{subheading}</p>}
+          {!subheading && <div className="mb-6" />}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email Field */}
+            {/* Email */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300 ml-1">Email Address</label>
               <div className="relative group">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">mail</span>
                 <input
-                  type="email"
-                  required
-                  value={email}
+                  type="email" required value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  disabled={sending}
+                  placeholder="name@example.com" disabled={sending}
                   className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3.5 pl-12 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all disabled:opacity-50"
                 />
               </div>
             </div>
 
-            {/* Password Field */}
-            {mode === 'password' && (
+            {/* Password (login + signup) */}
+            {(mode === 'password' || mode === 'signup') && (
               <div className="space-y-2">
                 <div className="flex justify-between items-center ml-1">
                   <label className="text-sm font-medium text-slate-300">Password</label>
-                  <button
-                    type="button"
-                    onClick={() => { setMode('forgot'); setError(null); setSuccess(false) }}
-                    className="text-xs text-slate-400 hover:text-primary transition-colors"
-                  >
-                    Forgot Password?
-                  </button>
+                  {mode === 'password' && (
+                    <button type="button"
+                      onClick={() => { setMode('forgot'); setError(null); setSuccess(false) }}
+                      className="text-xs text-slate-400 hover:text-primary transition-colors">
+                      Forgot Password?
+                    </button>
+                  )}
                 </div>
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">lock</span>
                   <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
+                    type={showPassword ? 'text' : 'password'} required value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    disabled={sending}
+                    placeholder={isSignup ? 'At least 6 characters' : '••••••••'} disabled={sending}
                     className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3.5 pl-12 pr-12 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all disabled:opacity-50"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-                  >
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors">
                     <span className="material-symbols-outlined text-xl">
                       {showPassword ? 'visibility_off' : 'visibility'}
                     </span>
@@ -134,55 +188,67 @@ export default function Auth() {
               </div>
             )}
 
-            {/* Success message */}
+            {/* Confirm Password (signup only) */}
+            {mode === 'signup' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300 ml-1">Confirm Password</label>
+                <div className="relative group">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">lock</span>
+                  <input
+                    type={showPassword ? 'text' : 'password'} required value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat password" disabled={sending}
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3.5 pl-12 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Success */}
             {success && successMsg && (
               <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
                 <p className="text-sm text-emerald-400">{successMsg}</p>
               </div>
             )}
 
-            {/* Error message */}
+            {/* Error */}
             {error && (
               <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-center">
                 <p className="text-sm text-red-400">{error}</p>
               </div>
             )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={sending || !email || (mode === 'password' && !password)}
-              className="w-full bg-gradient-to-r from-primary to-purple-500 text-white font-semibold py-4 rounded-lg shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 mt-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
+            {/* Submit */}
+            <button type="submit"
+              disabled={sending || !email || ((mode === 'password' || mode === 'signup') && !password) || (mode === 'signup' && !confirmPassword)}
+              className="w-full bg-gradient-to-r from-primary to-purple-500 text-white font-semibold py-4 rounded-lg shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 mt-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
               {sending ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
                   {loadingLabel}
                 </span>
-              ) : (
-                buttonLabel
-              )}
+              ) : buttonLabel}
             </button>
           </form>
 
           {/* Divider */}
           <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-700" />
-            </div>
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-700" /></div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-[#1e293b] px-2 text-slate-500">Or continue with</span>
             </div>
           </div>
 
-          {/* Google Sign In */}
-          <button
-            type="button"
+          {/* Google */}
+          <button type="button"
             onClick={async () => {
-              try { await signInWithGoogle() } catch (err) { setError(err.message) }
+              try {
+                // Store invited_by in localStorage so onboarding can use it
+                if (invitedBy) localStorage.setItem('boxflow_invited_by', invitedBy)
+                await signInWithGoogle()
+              } catch (err) { setError(err.message) }
             }}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 border border-slate-300 py-3 rounded-lg text-sm font-medium text-slate-800 transition-colors"
-          >
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 border border-slate-300 py-3 rounded-lg text-sm font-medium text-slate-800 transition-colors">
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -196,12 +262,24 @@ export default function Auth() {
         {/* Footer */}
         <div className="mt-8 flex flex-col items-center space-y-4">
           {mode === 'forgot' && (
-            <button
-              type="button"
+            <button type="button"
               onClick={() => { setMode('password'); setError(null); setSuccess(false) }}
-              className="text-primary font-semibold hover:underline decoration-primary/30 underline-offset-4"
-            >
+              className="text-primary font-semibold hover:underline decoration-primary/30 underline-offset-4">
               Back to Sign In
+            </button>
+          )}
+          {mode === 'signup' && (
+            <button type="button"
+              onClick={() => { setMode('password'); setError(null) }}
+              className="text-primary font-semibold hover:underline decoration-primary/30 underline-offset-4">
+              Already have an account? Sign In
+            </button>
+          )}
+          {mode === 'password' && (
+            <button type="button"
+              onClick={() => { setMode('signup'); setError(null) }}
+              className="text-primary font-semibold hover:underline decoration-primary/30 underline-offset-4">
+              Don't have an account? Sign Up
             </button>
           )}
           <div className="flex gap-4 text-xs text-slate-500">

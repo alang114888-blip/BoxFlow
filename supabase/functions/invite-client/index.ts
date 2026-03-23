@@ -9,6 +9,68 @@ const corsHeaders = {
 
 const SITE_URL = 'https://box-flow-eight.vercel.app'
 
+// Gmail API helper
+async function getGmailAccessToken(): Promise<string> {
+  const clientId = Deno.env.get('GMAIL_CLIENT_ID')!
+  const clientSecret = Deno.env.get('GMAIL_CLIENT_SECRET')!
+  const refreshToken = Deno.env.get('GMAIL_REFRESH_TOKEN')!
+
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+
+  const data = await resp.json()
+  if (!data.access_token) {
+    throw new Error(`Gmail token refresh failed: ${JSON.stringify(data)}`)
+  }
+  return data.access_token
+}
+
+async function sendGmail(to: string, subject: string, htmlBody: string) {
+  const accessToken = await getGmailAccessToken()
+
+  const rawMessage = [
+    `From: BoxFlow <boxflow58@gmail.com>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/html; charset=utf-8`,
+    ``,
+    htmlBody,
+  ].join('\r\n')
+
+  // Base64url encode
+  const encoder = new TextEncoder()
+  const bytes = encoder.encode(rawMessage)
+  const base64 = btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+  const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ raw: base64 }),
+  })
+
+  if (!resp.ok) {
+    const err = await resp.text()
+    throw new Error(`Gmail send failed: ${resp.status} ${err}`)
+  }
+
+  return await resp.json()
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -20,8 +82,6 @@ serve(async (req) => {
   try {
     const { email, trainer_id } = await req.json()
     log(`[invite] Request: email=${email}, trainer_id=${trainer_id}`)
-    log(`[invite] SUPABASE_URL exists: ${!!Deno.env.get('SUPABASE_URL')}`)
-    log(`[invite] SERVICE_ROLE_KEY exists: ${!!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`)
 
     if (!email || !trainer_id) {
       return new Response(
@@ -35,75 +95,47 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Store pending invite (insert, ignore duplicates)
+    // Store pending invite
     const { error: pendingErr } = await supabaseAdmin.from('pending_invites').insert(
       { email: email.toLowerCase(), trainer_id }
     )
     log(`[invite] pending_invites insert: ${pendingErr ? 'SKIPPED: ' + pendingErr.message : 'OK'}`)
 
-    // Try invite (new user) first
-    log('[invite] Trying inviteUserByEmail...')
-    const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email.toLowerCase(),
-      {
-        redirectTo: `${SITE_URL}/onboarding`,
-        data: { role: 'client', invited_by_trainer: trainer_id },
-      }
-    )
-    log(`[invite] inviteUserByEmail result: ${inviteErr ? 'FAILED: ' + inviteErr.message : 'OK, user=' + inviteData?.user?.id}`)
+    // Get trainer name for the email
+    const { data: trainerData } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', trainer_id)
+      .single()
+    const trainerName = trainerData?.full_name || 'Your trainer'
 
-    if (inviteErr) {
-      // User already exists → send magic link OTP
-      log('[invite] Trying signInWithOtp fallback...')
-      const { error: otpErr } = await supabaseAdmin.auth.signInWithOtp({
-        email: email.toLowerCase(),
-        options: {
-          emailRedirectTo: `${SITE_URL}/onboarding`,
-          data: { role: 'client', invited_by_trainer: trainer_id },
-          shouldCreateUser: false,
-        },
-      })
-      log(`[invite] signInWithOtp result: ${otpErr ? 'FAILED: ' + otpErr.message : 'OK'}`)
+    // Generate signup/login link
+    const signupLink = `${SITE_URL}/login?invited_by=${trainer_id}`
 
-      if (otpErr) {
-        // Last resort: try with shouldCreateUser: true
-        log('[invite] Trying signInWithOtp with shouldCreateUser=true...')
-        const { error: otp2Err } = await supabaseAdmin.auth.signInWithOtp({
-          email: email.toLowerCase(),
-          options: {
-            emailRedirectTo: `${SITE_URL}/onboarding`,
-            data: { role: 'client', invited_by_trainer: trainer_id },
-            shouldCreateUser: true,
-          },
-        })
-        log(`[invite] signInWithOtp(create) result: ${otp2Err ? 'FAILED: ' + otp2Err.message : 'OK'}`)
+    // Send invite email via Gmail API
+    const subject = `${trainerName} invited you to BoxFlow`
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #6366f1;">You're Invited to BoxFlow! 💪</h2>
+        <p><strong>${trainerName}</strong> has invited you to join BoxFlow as their client.</p>
+        <p>Click the button below to get started:</p>
+        <a href="${signupLink}" 
+           style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; 
+                  border-radius: 8px; text-decoration: none; font-weight: bold; margin: 16px 0;">
+          Join BoxFlow
+        </a>
+        <p style="color: #666; font-size: 14px;">Or copy this link: ${signupLink}</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #999; font-size: 12px;">BoxFlow — Fitness Coaching Platform</p>
+      </div>
+    `
 
-        if (otp2Err) {
-          // Log error to error_logs table
-          try {
-            await supabaseAdmin.from('error_logs').insert({
-              action: 'invite_client',
-              error_message: `All methods failed. invite: ${inviteErr.message}, otp: ${otpErr.message}, otp2: ${otp2Err.message}`,
-              error_details: { email, trainer_id, logs },
-            })
-          } catch (_) { /* ignore logging errors */ }
+    log('[invite] Sending email via Gmail API...')
+    await sendGmail(email.toLowerCase(), subject, htmlBody)
+    log('[invite] Gmail send OK')
 
-          return new Response(
-            JSON.stringify({ error: otp2Err.message, logs }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          )
-        }
-      }
-
-      return new Response(
-        JSON.stringify({ success: true, type: 'existing_user', logs }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    log('[invite] Success: new user invited')
     return new Response(
-      JSON.stringify({ success: true, type: 'new_user', logs }),
+      JSON.stringify({ success: true, type: 'gmail_invite', logs }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
