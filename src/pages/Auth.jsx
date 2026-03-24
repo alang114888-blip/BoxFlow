@@ -100,10 +100,45 @@ export default function Auth() {
           return
         }
 
-        // Profile creation + trainer linking happens in Onboarding.jsx
-        // (profile may not exist yet at this point — AuthContext creates it on session load)
-        // The user will be redirected to /onboarding where phone, is_onboarded,
-        // trainer_clients, and pending_invites are all handled.
+        if (data?.user?.id) {
+          // Wait for profile to be created by AuthContext trigger
+          let profileReady = false
+          for (let i = 0; i < 10; i++) {
+            const { data: p } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('id', data.user.id)
+              .maybeSingle()
+            if (p) { profileReady = true; break }
+            await new Promise(r => setTimeout(r, 500))
+          }
+
+          if (profileReady) {
+            // Save phone + mark as onboarded
+            await supabase
+              .from('profiles')
+              .update({ phone: cleanPhone, is_onboarded: true })
+              .eq('id', data.user.id)
+
+            // Create trainer_clients relationship
+            if (invitedBy) {
+              await supabase.from('trainer_clients').insert({
+                trainer_id: invitedBy,
+                client_id: data.user.id,
+                invited_email: email.toLowerCase(),
+                invite_accepted: true,
+              }).catch(() => {})
+
+              // Clean up pending invite
+              await supabase
+                .from('pending_invites')
+                .delete()
+                .eq('email', email.toLowerCase())
+                .eq('trainer_id', invitedBy)
+                .catch(() => {})
+            }
+          }
+        }
       } else {
         await signInWithPassword(email, password)
       }

@@ -109,8 +109,8 @@ export default function App() {
           <Route path="/client/checkin" element={<WeeklyCheckIn />} />
           <Route path="/client/nutrition-home" element={<NutritionHome />} />
           <Route path="/client/photos" element={<MyPhotos />} />
+          <Route path="/client/leaderboard" element={<ClientLeaderboard />} />
         </Route>
-        <Route path="/client/leaderboard" element={<ClientLeaderboard />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
