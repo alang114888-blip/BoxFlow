@@ -46,17 +46,14 @@ export default function PRTracker() {
 
       const trainerId = plansRes.data?.trainer_id
 
-      let exercises = []
-      if (trainerId) {
-        const { data: exData } = await supabase
-          .from('exercises')
-          .select('id, name, category')
-          .eq('trainer_id', trainerId)
-          .eq('is_pr_eligible', true)
-          .order('name')
-
-        exercises = exData || []
-      }
+      // Fetch trainer exercises + system defaults
+      const [trainerExRes, sysExRes] = await Promise.all([
+        trainerId
+          ? supabase.from('exercises').select('id, name, category').eq('trainer_id', trainerId).eq('is_pr_eligible', true).order('name')
+          : { data: [] },
+        supabase.from('exercises').select('id, name, category').is('trainer_id', null).eq('is_default', true).order('name'),
+      ])
+      const exercises = [...(sysExRes.data || []), ...(trainerExRes.data || [])]
 
       // Build PR map (latest per exercise)
       const prMap = {}

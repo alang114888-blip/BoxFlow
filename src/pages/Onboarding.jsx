@@ -246,11 +246,26 @@ export default function Onboarding() {
           invited_email: clientEmail,
           invite_accepted: true,
         })
-        if (tcErr) console.error('trainer_clients insert error:', tcErr.message)
-        else console.log('trainer_clients created:', inv.trainer_id, '→', user.id)
+        if (tcErr) {
+          console.log('trainer_clients insert failed, trying update:', tcErr.message)
+          // Record might exist with invite_accepted=false — update it
+          await supabase.from('trainer_clients')
+            .update({ invite_accepted: true, client_id: user.id })
+            .eq('trainer_id', inv.trainer_id)
+            .eq('invited_email', clientEmail)
+        } else {
+          console.log('trainer_clients created:', inv.trainer_id, '→', user.id)
+        }
 
         await supabase.from('pending_invites').delete().eq('id', inv.id)
       }
+
+      // Also fix any existing trainer_clients with invite_accepted=false
+      await supabase.from('trainer_clients')
+        .update({ invite_accepted: true })
+        .eq('client_id', user.id)
+        .eq('invite_accepted', false)
+        .catch(() => {})
 
       // Fallback: check metadata for invited_by_trainer
       const invitedBy = user.user_metadata?.invited_by_trainer
