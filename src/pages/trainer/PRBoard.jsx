@@ -25,6 +25,9 @@ export default function PRBoard() {
   const [applyingDefaults, setApplyingDefaults] = useState(false)
   const [defaultsApplied, setDefaultsApplied] = useState(false)
 
+  // Client PR viewer
+  const [selectedPRClient, setSelectedPRClient] = useState('')
+
   useEffect(() => {
     if (!profile) return
     fetchData()
@@ -314,34 +317,67 @@ export default function PRBoard() {
         </div>
       )}
 
-      {/* Client PRs table */}
-      {clientPRs.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-primary/10 bg-[#1a1225] overflow-hidden">
-          <div className="px-3 py-2 border-b border-white/5">
-            <span className="text-xs font-bold text-slate-300">Client PR Values</span>
-          </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-[9px] font-bold text-slate-500 uppercase tracking-wider border-b border-white/5">
-                <th className="px-3 py-2">Client</th>
-                <th className="px-3 py-2">Exercise</th>
-                <th className="px-3 py-2 text-right">PR (kg)</th>
-                <th className="px-3 py-2 text-right">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {clientPRs.map((pr) => (
-                <tr key={pr.id} className="hover:bg-white/[0.02]">
-                  <td className="px-3 py-2 text-xs text-slate-200">{pr.profiles?.full_name || '—'}</td>
-                  <td className="px-3 py-2 text-xs text-slate-400">{pr.exercises?.name || '—'}</td>
-                  <td className="px-3 py-2 text-xs text-right font-bold text-primary">{pr.weight_kg > 0 ? pr.weight_kg : '—'}</td>
-                  <td className="px-3 py-2 text-[10px] text-right text-slate-500">{pr.date_achieved ? new Date(pr.date_achieved).toLocaleDateString() : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Client PR Values — with client dropdown */}
+      <div className="mb-6 rounded-2xl border border-primary/10 bg-[#1a1225] overflow-hidden">
+        <div className="px-3 py-2.5 border-b border-white/5 flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-300">Client PR Values</span>
+          <select
+            value={selectedPRClient}
+            onChange={(e) => setSelectedPRClient(e.target.value)}
+            className="bg-[#0f0a19] border border-primary/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary/30 max-w-[160px]"
+          >
+            <option value="">Select client...</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.full_name || c.email}</option>)}
+          </select>
         </div>
-      )}
+
+        {!selectedPRClient ? (
+          <div className="px-4 py-8 text-center">
+            <span className="material-symbols-outlined text-slate-600 text-3xl mb-1">person_search</span>
+            <p className="text-xs text-slate-500">Select a client to view their PRs</p>
+          </div>
+        ) : (() => {
+          // Show all exercises with this client's PR values
+          const clientPrMap = {}
+          clientPRs.filter(p => p.client_id === selectedPRClient).forEach(p => {
+            clientPrMap[p.exercise_id || p.exercises?.id] = p
+          })
+
+          // Group exercises by category
+          const categories = {}
+          exercises.forEach(ex => {
+            const cat = ex.category || 'other'
+            if (!categories[cat]) categories[cat] = []
+            categories[cat].push(ex)
+          })
+
+          return (
+            <div>
+              {Object.entries(categories).map(([cat, exList]) => (
+                <div key={cat}>
+                  <div className="px-3 py-1 bg-white/[0.02] border-b border-white/5">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{cat}</span>
+                  </div>
+                  {exList.map(ex => {
+                    const pr = clientPrMap[ex.id]
+                    return (
+                      <div key={ex.id} className="flex items-center px-3 py-2 border-b border-white/5 hover:bg-white/[0.02]">
+                        <span className="flex-1 text-xs text-slate-200">{ex.name}</span>
+                        <span className={`text-xs font-bold w-16 text-right ${pr?.weight_kg > 0 ? 'text-primary' : 'text-slate-600'}`}>
+                          {pr?.weight_kg > 0 ? `${pr.weight_kg} kg` : '0 kg'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 w-20 text-right">
+                          {pr?.date_achieved ? new Date(pr.date_achieved).toLocaleDateString() : '—'}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          )
+        })()}
+      </div>
 
       {/* Assign Exercise Modal */}
       {assignExercise && (
