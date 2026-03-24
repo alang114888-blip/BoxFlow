@@ -108,11 +108,13 @@ export default function PRTracker() {
       if (upsertErr) throw upsertErr
 
       // Also save to PR history (full log, never overwritten)
-      await supabase.from('pr_history').insert({
-        client_id: profile.id,
-        exercise_id: exerciseId,
-        weight_kg: weight,
-      }).catch(() => {}) // non-critical
+      try {
+        await supabase.from('pr_history').insert({
+          client_id: profile.id,
+          exercise_id: exerciseId,
+          weight_kg: weight,
+        })
+      } catch { /* non-critical */ }
 
       setEditingId(null)
       setEditWeight('')
