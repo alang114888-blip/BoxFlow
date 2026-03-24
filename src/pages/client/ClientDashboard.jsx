@@ -282,5 +282,3 @@ export default function ClientDashboard() {
 }
 
 // MacroBar and MealItem removed — nutrition section now shows plan name only
-  )
-}
