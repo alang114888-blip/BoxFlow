@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
+import PullToRefresh from './PullToRefresh'
 
 // show = which effectiveModes display this tab
 // 'fitness' → visible when effectiveMode is 'fitness'
@@ -113,11 +114,13 @@ export default function TrainerLayout() {
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto pb-28">
-        <div className="mx-auto max-w-2xl px-4 py-2">
-          <Outlet context={{ trainerType, activeMode: effectiveMode }} />
+      <PullToRefresh>
+        <div className="pb-28">
+          <div className="mx-auto max-w-2xl px-4 py-2">
+            <Outlet context={{ trainerType, activeMode: effectiveMode }} />
+          </div>
         </div>
-      </main>
+      </PullToRefresh>
 
       {/* Bottom nav */}
       <nav className="fixed bottom-0 inset-x-0 bg-[#1a1225]/95 backdrop-blur-xl border-t border-white/5 pb-8 z-50">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
+import PullToRefresh from './PullToRefresh'
 
 // Tabs filtered by trainer type
 const allTabs = [
@@ -111,9 +112,11 @@ export default function ClientLayout() {
       )}
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto pb-28">
-        <Outlet context={{ trainerType }} />
-      </main>
+      <PullToRefresh>
+        <div className="pb-28">
+          <Outlet context={{ trainerType }} />
+        </div>
+      </PullToRefresh>
 
       {/* Bottom Navigation */}
       <nav className="fixed inset-x-0 bottom-0 z-50 bg-[#0f0a19]/95 backdrop-blur-xl border-t border-white/5 pb-8">
