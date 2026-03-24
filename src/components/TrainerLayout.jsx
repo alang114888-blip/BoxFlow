@@ -91,32 +91,25 @@ export default function TrainerLayout() {
               <h1 className="text-lg font-bold tracking-tight">Box<span className="text-primary">Flow</span></h1>
             </div>
           </div>
-          <button onClick={() => navigate('/trainer/settings')} className="p-2 rounded-xl hover:bg-white/5 transition">
-            <span className="material-symbols-outlined text-slate-400 text-[24px]">settings</span>
-          </button>
-        </div>
-
-        {/* Mode toggle — only for 'both' trainers */}
-        {trainerType === 'both' && (
-          <div className="mt-2 flex rounded-xl bg-[#1a1225] border border-primary/10 p-1">
-            <button
-              onClick={() => toggleMode('fitness')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeMode === 'fitness' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400'
-              }`}
-            >
-              <span className="text-[14px]">💪</span> Fitness
-            </button>
-            <button
-              onClick={() => toggleMode('nutrition')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeMode === 'nutrition' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400'
-              }`}
-            >
-              <span className="text-[14px]">🥗</span> Nutrition
+          <div className="flex items-center gap-1">
+            {/* Mode toggle — compact, only for 'both' trainers */}
+            {trainerType === 'both' && (
+              <div className="flex rounded-lg bg-[#1a1225] border border-primary/10 p-0.5">
+                <button onClick={() => toggleMode('fitness')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${activeMode === 'fitness' ? 'bg-primary text-white' : 'text-slate-500'}`}>
+                  💪
+                </button>
+                <button onClick={() => toggleMode('nutrition')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${activeMode === 'nutrition' ? 'bg-primary text-white' : 'text-slate-500'}`}>
+                  🥗
+                </button>
+              </div>
+            )}
+            <button onClick={() => navigate('/trainer/settings')} className="p-2 rounded-xl hover:bg-white/5 transition">
+              <span className="material-symbols-outlined text-slate-400 text-[24px]">settings</span>
             </button>
           </div>
-        )}
+        </div>
       </header>
 
       {/* Content */}

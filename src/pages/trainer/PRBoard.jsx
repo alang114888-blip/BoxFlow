@@ -263,82 +263,83 @@ export default function PRBoard() {
         </form>
       )}
 
-      {/* Key Exercises */}
+      {/* Exercises - compact table */}
       {exercises.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl border border-primary/10 bg-[#1a1426]">
-          <span className="material-symbols-outlined text-slate-600 text-5xl mb-3">fitness_center</span>
+        <div className="text-center py-12 rounded-2xl border border-primary/10 bg-[#1a1225]">
+          <span className="material-symbols-outlined text-slate-600 text-4xl mb-2">fitness_center</span>
           <p className="text-slate-400 text-sm">No PR exercises defined yet.</p>
-          <p className="text-slate-500 text-xs mt-1">Add exercises like Squat, Bench Press, Deadlift</p>
         </div>
       ) : (
-        <div className="space-y-3 mb-6">
-          {exercises.map((ex) => (
-            <div key={ex.id} className="rounded-2xl border border-primary/10 bg-[#1a1426] p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-primary text-[20px]">fitness_center</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-white">{ex.name}</p>
-                    {ex.video_url && (
-                      <a href={ex.video_url} target="_blank" rel="noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-0.5">
-                        <span className="material-symbols-outlined text-[12px]">play_circle</span> Video
-                      </a>
-                    )}
-                  </div>
+        <div className="mb-6 rounded-2xl border border-primary/10 bg-[#1a1225] overflow-hidden">
+          {/* Group by category */}
+          {(() => {
+            const categories = {}
+            exercises.forEach(ex => {
+              const cat = ex.category || 'other'
+              if (!categories[cat]) categories[cat] = []
+              categories[cat].push(ex)
+            })
+            return Object.entries(categories).map(([cat, exList]) => (
+              <div key={cat}>
+                <div className="px-3 py-1.5 bg-white/[0.02] border-b border-white/5">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{cat}</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => { setAssignExercise(ex); setSelectedClient('') }}
-                    className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition"
-                    title="Assign to client"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">person_add</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteExercise(ex.id)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/5 transition"
-                    title="Delete exercise"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
-                </div>
+                {exList.map(ex => {
+                  const prs = clientPRs.filter(p => p.exercises?.id === ex.id)
+                  return (
+                    <div key={ex.id} className="flex items-center px-3 py-2 border-b border-white/5 hover:bg-white/[0.02] group">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white truncate">{ex.name}</p>
+                        {ex.video_url && (
+                          <a href={ex.video_url} target="_blank" rel="noreferrer" className="text-[9px] text-primary hover:underline">Video</a>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-500 px-2 w-16 text-center">{prs.length} client{prs.length !== 1 ? 's' : ''}</span>
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => { setAssignExercise(ex); setSelectedClient('') }}
+                          className="p-1 rounded text-slate-400 hover:text-primary transition" title="Assign">
+                          <span className="material-symbols-outlined text-[16px]">person_add</span>
+                        </button>
+                        <button onClick={() => handleDeleteExercise(ex.id)}
+                          className="p-1 rounded text-slate-400 hover:text-red-400 transition" title="Delete">
+                          <span className="material-symbols-outlined text-[16px]">delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
+            ))
+          })()}
+        </div>
+      )}
 
-              {/* PRs for this exercise */}
-              {(() => {
-                const prs = clientPRs.filter(p => p.exercises?.id === ex.id)
-                if (prs.length === 0) return (
-                  <p className="text-xs text-slate-500 italic">No clients assigned yet</p>
-                )
-                return (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                          <th className="pb-2">Client</th>
-                          <th className="pb-2 text-right">PR (kg)</th>
-                          <th className="pb-2 text-right">Updated</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {prs.map((pr) => (
-                          <tr key={pr.id}>
-                            <td className="py-2 text-sm text-slate-200">{pr.profiles?.full_name || pr.profiles?.email || '—'}</td>
-                            <td className="py-2 text-sm text-right font-bold text-primary">{pr.weight_kg > 0 ? pr.weight_kg : '—'}</td>
-                            <td className="py-2 text-xs text-right text-slate-500">
-                              {pr.date_achieved ? new Date(pr.date_achieved).toLocaleDateString() : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )
-              })()}
-            </div>
-          ))}
+      {/* Client PRs table */}
+      {clientPRs.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-primary/10 bg-[#1a1225] overflow-hidden">
+          <div className="px-3 py-2 border-b border-white/5">
+            <span className="text-xs font-bold text-slate-300">Client PR Values</span>
+          </div>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-[9px] font-bold text-slate-500 uppercase tracking-wider border-b border-white/5">
+                <th className="px-3 py-2">Client</th>
+                <th className="px-3 py-2">Exercise</th>
+                <th className="px-3 py-2 text-right">PR (kg)</th>
+                <th className="px-3 py-2 text-right">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {clientPRs.map((pr) => (
+                <tr key={pr.id} className="hover:bg-white/[0.02]">
+                  <td className="px-3 py-2 text-xs text-slate-200">{pr.profiles?.full_name || '—'}</td>
+                  <td className="px-3 py-2 text-xs text-slate-400">{pr.exercises?.name || '—'}</td>
+                  <td className="px-3 py-2 text-xs text-right font-bold text-primary">{pr.weight_kg > 0 ? pr.weight_kg : '—'}</td>
+                  <td className="px-3 py-2 text-[10px] text-right text-slate-500">{pr.date_achieved ? new Date(pr.date_achieved).toLocaleDateString() : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
