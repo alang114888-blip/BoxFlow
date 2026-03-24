@@ -58,7 +58,7 @@ export default function ClientDashboard() {
           .eq('client_id', profile.id)
           .eq('is_active', true)
           .limit(1)
-          .single(),
+          .maybeSingle(),
 
         supabase
           .from('nutrition_plans')
@@ -66,7 +66,7 @@ export default function ClientDashboard() {
           .eq('client_id', profile.id)
           .eq('is_active', true)
           .limit(1)
-          .single(),
+          .maybeSingle(),
 
         supabase
           .from('workout_logs')
@@ -218,57 +218,16 @@ export default function ClientDashboard() {
         </div>
 
         <div className="rounded-2xl bg-[#1a1225] border border-white/5 p-5">
-          {/* Calorie ring + total */}
-          <div className="flex items-center gap-5">
-            {/* Circular progress ring */}
-            <div className="relative flex-shrink-0">
-              <svg width="80" height="80" viewBox="0 0 80 80">
-                <circle
-                  cx="40" cy="40" r="34"
-                  fill="none"
-                  stroke="#251b3a"
-                  strokeWidth="6"
-                />
-                <circle
-                  cx="40" cy="40" r="34"
-                  fill="none"
-                  stroke="#7c3bed"
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 34}`}
-                  strokeDashoffset={`${2 * Math.PI * 34 * (1 - 0.77)}`}
-                  transform="rotate(-90 40 40)"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-lg font-bold text-white">77%</span>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-slate-400">Daily intake</p>
-              <p className="text-xl font-bold text-white">
-                1,840 <span className="text-sm font-normal text-slate-500">/ 2,400 kcal</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Macro bars */}
-          <div className="mt-5 space-y-3">
-            <MacroBar label="Protein" current={120} target={160} color="bg-blue-500" />
-            <MacroBar label="Carbs" current={200} target={280} color="bg-emerald-500" />
-            <MacroBar label="Fats" current={55} target={70} color="bg-yellow-500" />
-          </div>
-
-          {/* Meal items */}
           {activeNutritionPlan ? (
-            <div className="mt-5 space-y-2 border-t border-white/5 pt-4">
-              <MealItem icon="egg_alt" name="Breakfast" detail="Oats & protein shake" kcal={420} />
-              <MealItem icon="lunch_dining" name="Lunch" detail="Grilled chicken bowl" kcal={650} />
-              <MealItem icon="dinner_dining" name="Snack" detail="Greek yogurt & berries" kcal={220} />
-              <MealItem icon="local_cafe" name="Post-workout" detail="Protein bar" kcal={280} />
+            <div>
+              <p className="text-sm font-medium text-white mb-1">{activeNutritionPlan.name}</p>
+              {activeNutritionPlan.description && (
+                <p className="text-xs text-slate-400">{activeNutritionPlan.description}</p>
+              )}
             </div>
           ) : (
-            <div className="mt-5 border-t border-white/5 pt-4 text-center">
+            <div className="text-center py-4">
+              <span className="material-symbols-outlined text-slate-600 text-3xl mb-2">restaurant</span>
               <p className="text-sm text-slate-500">No nutrition plan assigned yet.</p>
             </div>
           )}
@@ -322,37 +281,6 @@ export default function ClientDashboard() {
   )
 }
 
-function MacroBar({ label, current, target, color }) {
-  const pct = Math.min((current / target) * 100, 100)
-  return (
-    <div>
-      <div className="mb-1 flex items-center justify-between text-xs">
-        <span className="text-slate-400">{label}</span>
-        <span className="text-slate-500">{current}g / {target}g</span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-[#251b3a]">
-        <div
-          className={`h-full rounded-full ${color} transition-all`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-function MealItem({ icon, name, detail, kcal }) {
-  return (
-    <div className="flex items-center justify-between py-1.5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#251b3a]">
-          <span className="material-symbols-outlined text-[16px] text-primary">{icon}</span>
-        </div>
-        <div>
-          <p className="text-sm font-medium text-white">{name}</p>
-          <p className="text-[11px] text-slate-500">{detail}</p>
-        </div>
-      </div>
-      <span className="text-xs font-semibold text-slate-400">{kcal} kcal</span>
-    </div>
+// MacroBar and MealItem removed — nutrition section now shows plan name only
   )
 }

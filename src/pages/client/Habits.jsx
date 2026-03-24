@@ -44,19 +44,24 @@ export default function Habits() {
     const logMap = {}
     ;(logsData || []).forEach(l => { logMap[l.habit_id] = l })
 
-    // Calculate streak
+    // Calculate streak with single query
     let s = 0
     if (habitsData?.length > 0) {
-      for (let i = 1; i <= 30; i++) {
-        const d = new Date(); d.setDate(d.getDate() - i)
-        const ds = d.toISOString().split('T')[0]
-        const { data: dayLogs } = await supabase
-          .from('habit_logs')
-          .select('completed')
-          .in('habit_id', habitsData.map(h => h.id))
-          .eq('logged_date', ds)
-          .eq('completed', true)
-        if (dayLogs?.length > 0) s++
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      const { data: streakLogs } = await supabase
+        .from('habit_logs')
+        .select('logged_date')
+        .in('habit_id', habitsData.map(h => h.id))
+        .eq('completed', true)
+        .gte('logged_date', thirtyDaysAgo.toISOString().split('T')[0])
+        .order('logged_date', { ascending: false })
+
+      const uniqueDates = [...new Set((streakLogs || []).map(l => l.logged_date))].sort().reverse()
+      for (let i = 0; i < uniqueDates.length; i++) {
+        const expected = new Date()
+        expected.setDate(expected.getDate() - (i + 1))
+        if (uniqueDates[i] === expected.toISOString().split('T')[0]) s++
         else break
       }
     }

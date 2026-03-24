@@ -27,14 +27,15 @@ export default function PRTracker() {
       setError(null)
 
       // Get exercises marked as PR-eligible that belong to the client's trainer(s)
-      // We find the trainer via workout_plans
+      // We find the trainer via trainer_clients (works even without workout plans)
       const [plansRes, prsRes] = await Promise.all([
         supabase
-          .from('workout_plans')
+          .from('trainer_clients')
           .select('trainer_id')
           .eq('client_id', profile.id)
+          .eq('invite_accepted', true)
           .limit(1)
-          .single(),
+          .maybeSingle(),
 
         supabase
           .from('client_prs')

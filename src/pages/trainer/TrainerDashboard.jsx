@@ -19,10 +19,7 @@ export default function TrainerDashboard() {
   const outletContext = useOutletContext() || {}
   const activeMode = outletContext.activeMode
 
-  // Nutritionist mode → show NutritionistHome instead
-  if (activeMode === 'nutrition') {
-    return <NutritionistHome />
-  }
+  // All hooks must be declared before any early return
   const [stats, setStats] = useState({ clients: 0, workouts: 0, activity: 0 })
   const [loading, setLoading] = useState(true)
   const [clients, setClients] = useState([])
@@ -36,9 +33,14 @@ export default function TrainerDashboard() {
   const [clientCompletions, setClientCompletions] = useState({})
 
   useEffect(() => {
-    if (!profile) return
+    if (!profile || activeMode === 'nutrition') return
     fetchDashboardData()
-  }, [profile])
+  }, [profile, activeMode])
+
+  // Nutritionist mode → show NutritionistHome instead
+  if (activeMode === 'nutrition') {
+    return <NutritionistHome />
+  }
 
   async function fetchStats() {
     const [clientsRes, workoutsRes] = await Promise.all([
