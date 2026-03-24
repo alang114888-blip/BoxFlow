@@ -14,7 +14,7 @@ export default function Auth() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [mode, setMode] = useState(invitedBy ? 'signup' : 'password')
+  const [mode, setMode] = useState(invitedBy && invitedEmail ? 'signup' : 'password')
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
@@ -100,32 +100,10 @@ export default function Auth() {
           return
         }
 
-        // Save phone + mark as onboarded
-        if (data?.user?.id) {
-          await supabase
-            .from('profiles')
-            .update({ phone: cleanPhone, is_onboarded: true })
-            .eq('id', data.user.id)
-            .catch(() => {})
-
-          // Create trainer_clients relationship
-          if (invitedBy) {
-            await supabase.from('trainer_clients').insert({
-              trainer_id: invitedBy,
-              client_id: data.user.id,
-              invited_email: email.toLowerCase(),
-              invite_accepted: true,
-            }).catch(() => {})
-
-            // Clean up pending invite
-            await supabase
-              .from('pending_invites')
-              .delete()
-              .eq('email', email.toLowerCase())
-              .eq('trainer_id', invitedBy)
-              .catch(() => {})
-          }
-        }
+        // Profile creation + trainer linking happens in Onboarding.jsx
+        // (profile may not exist yet at this point — AuthContext creates it on session load)
+        // The user will be redirected to /onboarding where phone, is_onboarded,
+        // trainer_clients, and pending_invites are all handled.
       } else {
         await signInWithPassword(email, password)
       }
