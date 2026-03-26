@@ -276,16 +276,18 @@ export default function PRTracker() {
                       </div>
                     )}
                     {/* Input row */}
-                    <div className="flex items-center gap-2">
+                    <div className="space-y-2">
                       <input type="number" step="0.5" min="0" value={editWeight}
                         onChange={e => setEditWeight(e.target.value)} placeholder="New PR (kg)" autoFocus
-                        className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary" />
-                      <button onClick={() => handleSave(ex.id)} disabled={saving || !editWeight}
-                        className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 btn-press">
-                        {saving ? '...' : 'Save'}
-                      </button>
-                      <button onClick={() => { setEditingId(null); setEditWeight('') }}
-                        className="px-3 py-2 rounded-lg bg-white/5 text-slate-400 text-sm btn-press">Cancel</button>
+                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-primary" />
+                      <div className="flex gap-2">
+                        <button onClick={() => handleSave(ex.id)} disabled={saving || !editWeight}
+                          className="flex-1 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 btn-press">
+                          {saving ? '...' : 'Save'}
+                        </button>
+                        <button onClick={() => { setEditingId(null); setEditWeight('') }}
+                          className="flex-1 py-2 rounded-lg bg-white/5 text-slate-400 text-sm btn-press">Cancel</button>
+                      </div>
                     </div>
                   </div>
                 )}
