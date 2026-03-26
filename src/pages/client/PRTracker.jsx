@@ -1,12 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
-import {
-  TrophyIcon,
-  ArrowTrendingUpIcon,
-  InformationCircleIcon,
-} from '@heroicons/react/24/outline'
-import { format } from 'date-fns'
 import { SkeletonList } from '../../components/SkeletonLoader'
 import { toast } from '../../components/Toast'
 import Confetti from '../../components/Confetti'
@@ -15,13 +9,14 @@ export default function PRTracker() {
   const { profile } = useAuth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [prExercises, setPrExercises] = useState([])
+  const [exercises, setExercises] = useState([])
   const [prs, setPrs] = useState({})
-  const [prHistory, setPrHistory] = useState([])
+  const [history, setHistory] = useState({})
   const [editingId, setEditingId] = useState(null)
   const [editWeight, setEditWeight] = useState('')
   const [saving, setSaving] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+  const [stats, setStats] = useState({ total: 0, withPR: 0, monthGain: 0 })
 
   const fetchData = useCallback(async () => {
     if (!profile?.id) return
@@ -29,9 +24,7 @@ export default function PRTracker() {
       setLoading(true)
       setError(null)
 
-      // Get exercises marked as PR-eligible that belong to the client's trainer(s)
-      // We find the trainer via trainer_clients (works even without workout plans)
-      const [plansRes, prsRes] = await Promise.all([
+      const [tcRes, prsRes] = await Promise.all([
         supabase
           .from('trainer_clients')
           .select('trainer_id')
@@ -39,44 +32,60 @@ export default function PRTracker() {
           .eq('invite_accepted', true)
           .limit(1)
           .maybeSingle(),
-
         supabase
           .from('client_prs')
           .select('exercise_id, weight_kg, date_achieved')
-          .eq('client_id', profile.id)
-          .order('date_achieved', { ascending: false }),
+          .eq('client_id', profile.id),
       ])
 
-      const trainerId = plansRes.data?.trainer_id
+      const trainerId = tcRes.data?.trainer_id
 
-      // Fetch trainer exercises + system defaults
       const [trainerExRes, sysExRes] = await Promise.all([
         trainerId
           ? supabase.from('exercises').select('id, name, category').eq('trainer_id', trainerId).eq('is_pr_eligible', true).order('name')
           : { data: [] },
         supabase.from('exercises').select('id, name, category').is('trainer_id', null).eq('is_default', true).order('name'),
       ])
-      const exercises = [...(sysExRes.data || []), ...(trainerExRes.data || [])]
 
-      // Build PR map (latest per exercise)
+      const allExercises = [...(sysExRes.data || []), ...(trainerExRes.data || [])]
+        .sort((a, b) => a.name.localeCompare(b.name))
+
       const prMap = {}
-      if (prsRes.data) {
-        prsRes.data.forEach((pr) => {
-          if (!prMap[pr.exercise_id]) prMap[pr.exercise_id] = pr
-        })
-      }
+      ;(prsRes.data || []).forEach(pr => { prMap[pr.exercise_id] = pr })
 
-      // Fetch full PR history from pr_history table
+      // Fetch pr_history for sparklines
       const { data: histData } = await supabase
         .from('pr_history')
-        .select('id, exercise_id, new_weight, changed_at')
+        .select('exercise_id, new_weight, changed_at')
         .eq('client_id', profile.id)
-        .order('changed_at', { ascending: false })
-        .limit(50)
+        .order('changed_at', { ascending: true })
 
-      setPrExercises(exercises)
+      const histMap = {}
+      ;(histData || []).forEach(h => {
+        if (!histMap[h.exercise_id]) histMap[h.exercise_id] = []
+        histMap[h.exercise_id].push({ weight: Number(h.new_weight), date: h.changed_at })
+      })
+
+      // Calculate monthly gain
+      const now = new Date()
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+      let monthGain = 0
+      ;(histData || []).forEach(h => {
+        if (h.changed_at >= monthStart) {
+          const exHist = histMap[h.exercise_id]
+          if (exHist && exHist.length >= 2) {
+            const idx = exHist.findIndex(x => x.date === h.changed_at)
+            if (idx > 0) monthGain += (Number(h.new_weight) - exHist[idx - 1].weight)
+          }
+        }
+      })
+
+      const withPR = allExercises.filter(e => prMap[e.id] && Number(prMap[e.id].weight_kg) > 0).length
+
+      setExercises(allExercises)
       setPrs(prMap)
-      setPrHistory(histData || [])
+      setHistory(histMap)
+      setStats({ total: allExercises.length, withPR, monthGain: Math.round(monthGain * 10) / 10 })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -84,34 +93,26 @@ export default function PRTracker() {
     }
   }, [profile?.id])
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData])
 
-  async function handleUpdatePR(exerciseId) {
+  async function handleSave(exerciseId) {
     const weight = parseFloat(editWeight)
     if (!weight || weight <= 0) return
-
     try {
       setSaving(true)
+      const currentWeight = prs[exerciseId] ? Number(prs[exerciseId].weight_kg) : 0
 
-      // Update current PR
       const { error: upsertErr } = await supabase
         .from('client_prs')
-        .upsert(
-          {
-            client_id: profile.id,
-            exercise_id: exerciseId,
-            weight_kg: weight,
-            date_achieved: new Date().toISOString().split('T')[0],
-          },
-          { onConflict: 'client_id,exercise_id' }
-        )
+        .upsert({
+          client_id: profile.id,
+          exercise_id: exerciseId,
+          weight_kg: weight,
+          date_achieved: new Date().toISOString().split('T')[0],
+        }, { onConflict: 'client_id,exercise_id' })
 
       if (upsertErr) throw upsertErr
 
-      // Also save to PR history (full log, never overwritten)
-      const currentWeight = prs[exerciseId]?.weight_kg || 0
       try {
         await supabase.from('pr_history').insert({
           client_id: profile.id,
@@ -124,7 +125,8 @@ export default function PRTracker() {
       setEditingId(null)
       setEditWeight('')
       toast('New PR! 🎉')
-      setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3000)
+      setShowConfetti(true)
+      setTimeout(() => setShowConfetti(false), 3000)
       await fetchData()
     } catch (err) {
       setError(err.message)
@@ -133,14 +135,27 @@ export default function PRTracker() {
     }
   }
 
-  if (loading) {
-    return <SkeletonList count={6} />
+  function getMonthChange(exerciseId) {
+    const hist = history[exerciseId]
+    if (!hist || hist.length < 2) return null
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+    const thisMonth = hist.filter(h => h.date >= monthStart)
+    if (thisMonth.length === 0) return { change: 0, label: 'No change' }
+    const firstOfMonth = hist.find(h => h.date < monthStart) || hist[0]
+    const latest = hist[hist.length - 1]
+    const diff = Math.round((latest.weight - firstOfMonth.weight) * 10) / 10
+    if (diff > 0) return { change: diff, label: `+${diff}kg` }
+    if (diff < 0) return { change: diff, label: `${diff}kg` }
+    return { change: 0, label: 'No change' }
   }
+
+  if (loading) return <div className="px-5 py-4"><SkeletonList count={6} lines={1} /></div>
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
+      <div className="px-5 py-4">
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
           Failed to load PRs: {error}
         </div>
       </div>
@@ -148,165 +163,126 @@ export default function PRTracker() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="px-5 py-4 space-y-4">
       <Confetti active={showConfetti} />
-      {/* Header */}
+
       <div>
-        <h1 className="text-2xl font-bold text-dark-100">PR Tracker</h1>
-        <p className="mt-1 text-dark-400">Track your personal records</p>
+        <h1 className="text-xl font-bold text-white">PR Tracker</h1>
+        <p className="text-xs text-slate-500">Track your personal records</p>
       </div>
 
-      {/* Progress Charts */}
-      {/* ProgressCharts temporarily disabled — needs matching DB schema */}
-
-      {/* Info Banner */}
-      <div className="flex items-start gap-3 rounded-lg border border-primary-500/20 bg-primary-500/5 p-4">
-        <InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-primary-400" />
-        <p className="text-sm text-dark-300">
-          When you update a PR, your workout weights will automatically recalculate based on the
-          new value. Only exercises marked by your trainer as PR-eligible appear here.
-        </p>
+      {/* Summary Strip */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl bg-[#1a1225] border border-white/5 p-3 text-center">
+          <p className="text-lg font-bold text-primary">{stats.total}</p>
+          <p className="text-[10px] text-slate-500">Exercises</p>
+        </div>
+        <div className="rounded-xl bg-[#1a1225] border border-white/5 p-3 text-center">
+          <p className="text-lg font-bold text-primary">{stats.withPR}</p>
+          <p className="text-[10px] text-slate-500">PRs set</p>
+        </div>
+        <div className="rounded-xl bg-[#1a1225] border border-white/5 p-3 text-center">
+          <p className={`text-lg font-bold ${stats.monthGain > 0 ? 'text-emerald-400' : stats.monthGain < 0 ? 'text-red-400' : 'text-slate-400'}`}>
+            {stats.monthGain > 0 ? '+' : ''}{stats.monthGain}
+          </p>
+          <p className="text-[10px] text-slate-500">kg this month</p>
+        </div>
       </div>
 
-      {/* PR Exercises */}
-      {prExercises.length > 0 ? (
-        <div className="space-y-3">
-          {prExercises.map((exercise) => {
-            const currentPR = prs[exercise.id]
-            const isEditing = editingId === exercise.id
+      {/* Exercise List */}
+      {exercises.length === 0 ? (
+        <div className="rounded-2xl bg-[#1a1225] border border-white/5 p-8 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+            <span className="material-symbols-outlined text-primary text-3xl">trophy</span>
+          </div>
+          <p className="text-white font-semibold text-sm">No PR exercises yet</p>
+          <p className="text-slate-500 text-xs mt-1">Your trainer will set up PR-eligible exercises for you</p>
+        </div>
+      ) : (
+        <div className="space-y-1.5 stagger-list">
+          {exercises.map(ex => {
+            const pr = prs[ex.id]
+            const weight = pr ? Number(pr.weight_kg) : 0
+            const isEditing = editingId === ex.id
+            const hist = history[ex.id] || []
+            const sparkData = hist.slice(-5)
+            const maxW = Math.max(...sparkData.map(h => h.weight), 1)
+            const monthChange = getMonthChange(ex.id)
 
             return (
-              <div
-                key={exercise.id}
-                className="rounded-lg border border-dark-700 bg-dark-800 px-5 py-4"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <TrophyIcon className="h-5 w-5 text-primary-500" />
-                    <div>
-                      <p className="font-medium text-dark-200">{exercise.name}</p>
-                      <p className="text-xs text-dark-500">{exercise.category}</p>
+              <div key={ex.id}>
+                <button
+                  onClick={() => {
+                    if (isEditing) { setEditingId(null) }
+                    else { setEditingId(ex.id); setEditWeight(weight > 0 ? String(weight) : '') }
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all active:scale-[0.99] ${
+                    isEditing ? 'bg-primary/10 border border-primary/20 rounded-b-none' : 'bg-[#1a1225] border border-white/5 hover:border-primary/15'
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{ex.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {weight > 0 && pr?.date_achieved && (
+                        <span className="text-[10px] text-slate-500">
+                          {new Date(pr.date_achieved).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                      {monthChange && weight > 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                          monthChange.change > 0 ? 'bg-emerald-500/10 text-emerald-400'
+                            : monthChange.change < 0 ? 'bg-red-500/10 text-red-400'
+                            : 'bg-white/5 text-slate-500'
+                        }`}>{monthChange.label}</span>
+                      )}
+                      {weight === 0 && <span className="text-[10px] text-slate-600">No PR yet</span>}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    {currentPR ? (
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-primary-400">
-                          {currentPR.weight_kg} kg
-                        </p>
-                        <p className="text-xs text-dark-500">
-                          {format(new Date(currentPR.date_achieved), 'MMM d, yyyy')}
-                        </p>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-dark-500">No PR set</span>
-                    )}
+                  {sparkData.length > 0 && (
+                    <div className="flex items-end gap-[3px] h-[22px] flex-shrink-0">
+                      {sparkData.map((s, i) => (
+                        <div key={i}
+                          className={`w-[4px] rounded-sm ${i === sparkData.length - 1 ? 'bg-purple-400' : 'bg-primary/50'}`}
+                          style={{ height: `${Math.max((s.weight / maxW) * 22, 3)}px` }}
+                        />
+                      ))}
+                    </div>
+                  )}
 
-                    {!isEditing && (
-                      <button
-                        onClick={() => {
-                          setEditingId(exercise.id)
-                          setEditWeight(currentPR ? String(currentPR.weight_kg) : '')
-                        }}
-                        className="rounded-lg bg-dark-700 px-3 py-1.5 text-sm text-dark-300 transition-colors hover:bg-dark-600 hover:text-dark-200"
-                      >
-                        Update
-                      </button>
-                    )}
-                  </div>
-                </div>
+                  {weight > 0 ? (
+                    <span className="text-base font-bold text-primary min-w-[52px] text-right">{weight}kg</span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-primary/60 bg-primary/10 px-2 py-1 rounded-md">Set PR</span>
+                  )}
+                </button>
 
                 {isEditing && (
-                  <div className="mt-3 flex items-end gap-3 border-t border-dark-700 pt-3">
-                    <div className="flex-1">
-                      <label className="mb-1 block text-xs font-medium text-dark-400">
-                        New PR Weight (kg)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        value={editWeight}
-                        onChange={(e) => setEditWeight(e.target.value)}
-                        placeholder="e.g. 100"
-                        className="w-full rounded-lg border border-dark-600 bg-dark-900 px-3 py-2 text-sm text-dark-200 placeholder-dark-500 focus:border-primary-500 focus:outline-none"
-                        autoFocus
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleUpdatePR(exercise.id)}
-                      disabled={saving || !editWeight}
-                      className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-500 disabled:opacity-50"
-                    >
-                      {saving ? 'Saving...' : 'Save'}
+                  <div className="flex items-center gap-2 px-3 py-2.5 bg-primary/5 border border-primary/20 border-t-0 rounded-b-xl">
+                    <input type="number" step="0.5" min="0" value={editWeight}
+                      onChange={e => setEditWeight(e.target.value)} placeholder="Weight (kg)" autoFocus
+                      className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary" />
+                    <button onClick={() => handleSave(ex.id)} disabled={saving || !editWeight}
+                      className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 btn-press">
+                      {saving ? '...' : 'Save'}
                     </button>
-                    <button
-                      onClick={() => {
-                        setEditingId(null)
-                        setEditWeight('')
-                      }}
-                      className="rounded-lg bg-dark-700 px-4 py-2 text-sm text-dark-300 hover:bg-dark-600"
-                    >
-                      Cancel
-                    </button>
+                    <button onClick={() => { setEditingId(null); setEditWeight('') }}
+                      className="px-3 py-2 rounded-lg bg-white/5 text-slate-400 text-sm btn-press">Cancel</button>
                   </div>
                 )}
               </div>
             )
           })}
         </div>
-      ) : (
-        <div className="rounded-lg border border-dark-700 bg-dark-800 p-8 text-center">
-          <TrophyIcon className="mx-auto mb-3 h-12 w-12 text-dark-500" />
-          <p className="text-dark-400">No PR exercises defined yet.</p>
-          <p className="mt-1 text-sm text-dark-500">
-            Your trainer will set up PR-eligible exercises for you.
-          </p>
-        </div>
       )}
 
-      {/* PR History */}
-      {prHistory.length > 0 && (
-        <div className="rounded-lg border border-dark-700 bg-dark-800">
-          <div className="border-b border-dark-700 px-5 py-3">
-            <div className="flex items-center gap-2">
-              <ArrowTrendingUpIcon className="h-5 w-5 text-primary-500" />
-              <h2 className="text-lg font-semibold text-dark-100">PR History</h2>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-dark-700 text-dark-400">
-                  <th className="px-5 py-3 font-medium">Exercise</th>
-                  <th className="px-5 py-3 font-medium">Weight (kg)</th>
-                  <th className="px-5 py-3 font-medium">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prHistory.map((pr, i) => {
-                  const exercise = prExercises.find((e) => e.id === pr.exercise_id)
-                  return (
-                    <tr
-                      key={pr.id || `${pr.exercise_id}-${i}`}
-                      className="border-b border-dark-700/50 last:border-0"
-                    >
-                      <td className="px-5 py-3 font-medium text-dark-200">
-                        {exercise?.name || 'Unknown Exercise'}
-                      </td>
-                      <td className="px-5 py-3 text-primary-400">{pr.new_weight} kg</td>
-                      <td className="px-5 py-3 text-dark-400">
-                        {pr.changed_at ? format(new Date(pr.changed_at), 'MMM d, yyyy') : '—'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* Info */}
+      <div className="flex items-start gap-2.5 rounded-xl border border-primary/10 bg-primary/5 p-3">
+        <span className="material-symbols-outlined text-primary text-[18px] mt-0.5">info</span>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          When you update a PR, your workout weights will automatically recalculate. Only exercises marked by your trainer as PR-eligible appear here.
+        </p>
+      </div>
     </div>
   )
 }
