@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { SkeletonTable } from '../../components/SkeletonLoader'
+import EmptyState from '../../components/EmptyState'
 
 export default function PRBoard() {
   const { profile } = useAuth()
@@ -265,12 +266,9 @@ export default function PRBoard() {
 
       {/* Exercises - compact table */}
       {exercises.length === 0 ? (
-        <div className="text-center py-12 rounded-2xl border border-primary/10 bg-[#1a1225]">
-          <span className="material-symbols-outlined text-slate-600 text-4xl mb-2">fitness_center</span>
-          <p className="text-slate-400 text-sm">No PR exercises defined yet.</p>
-        </div>
+        <EmptyState type="prs" action={() => setShowAdd(true)} actionLabel="Add exercise" />
       ) : (
-        <div className="mb-6 rounded-2xl border border-primary/10 bg-[#1a1225] overflow-hidden">
+        <div className="mb-6 rounded-2xl border border-primary/10 bg-[#1a1225] overflow-hidden stagger-list">
           {/* Group by category */}
           {(() => {
             const categories = {}

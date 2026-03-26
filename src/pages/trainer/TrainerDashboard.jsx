@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import NutritionistHome from './NutritionistHome'
 import { SkeletonDashboard } from '../../components/SkeletonLoader'
+import AnimatedNumber from '../../components/AnimatedNumber'
 
 function getMonday(d) {
   const date = new Date(d)
@@ -253,7 +254,7 @@ export default function TrainerDashboard() {
         {statCards.map((s) => (
           <div key={s.label} className="rounded-2xl bg-[#1a1225] border border-primary/10 p-3 text-center">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-dark-400">{s.label}</p>
-            <p className="mt-1 text-2xl font-bold text-primary">{s.value}</p>
+            <p className="mt-1 text-2xl font-bold text-primary">{typeof s.value === 'number' ? <AnimatedNumber value={s.value} /> : s.value}</p>
           </div>
         ))}
       </div>
@@ -313,7 +314,7 @@ export default function TrainerDashboard() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 stagger-list">
           {clients.map((client) => {
             const dots = getStatusDots(client.id)
             const checkedIn = alerts.checkedInClients.some((c) => c.id === client.id)

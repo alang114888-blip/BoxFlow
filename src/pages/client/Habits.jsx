@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { SkeletonList } from '../../components/SkeletonLoader'
+import EmptyState from '../../components/EmptyState'
+import { toast } from '../../components/Toast'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 
@@ -88,6 +90,7 @@ export default function Habits() {
       ...prev,
       [habitId]: { ...prev[habitId], completed: newCompleted, habit_id: habitId },
     }))
+    if (newCompleted) toast('Habit completed! 🎉')
   }
 
   if (loading) {
@@ -122,13 +125,9 @@ export default function Habits() {
 
       {/* Habit list */}
       {habits.length === 0 ? (
-        <div className="text-center py-8 rounded-2xl border border-primary/10 bg-[#1a1225]">
-          <span className="material-symbols-outlined text-slate-600 text-3xl mb-2">checklist</span>
-          <p className="text-slate-400 text-sm">No habits set up yet</p>
-          <p className="text-slate-500 text-xs">Ask your trainer to set habits for you</p>
-        </div>
+        <EmptyState type="habits" />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 stagger-list">
           {habits.map(h => {
             const done = logs[h.id]?.completed
             return (

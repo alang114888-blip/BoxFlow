@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import PhotoUpload from '../../components/PhotoUpload'
+import EmptyState from '../../components/EmptyState'
 
 export default function MyPhotos() {
   const { profile } = useAuth()
@@ -40,11 +41,7 @@ export default function MyPhotos() {
       <PhotoUpload onUpload={fetchPhotos} />
 
       {photos.length === 0 ? (
-        <div className="text-center py-12 rounded-2xl border border-primary/10 bg-[#1a1225]">
-          <span className="material-symbols-outlined text-slate-600 text-4xl mb-2">photo_library</span>
-          <p className="text-slate-400 text-sm">No photos yet</p>
-          <p className="text-slate-500 text-xs mt-1">Upload your first progress photo</p>
-        </div>
+        <EmptyState type="photos" />
       ) : (
         <div className="space-y-4">
           {/* Group by month */}

@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import NutritionHome from './NutritionHome'
 import { SkeletonDashboard } from '../../components/SkeletonLoader'
+import MiniChart from '../../components/MiniChart'
 import Habits from './Habits'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -21,6 +22,7 @@ export default function ClientDashboard() {
   const [weeklyCompleted, setWeeklyCompleted] = useState(0)
   const [prCount, setPrCount] = useState(0)
   const [recentLogs, setRecentLogs] = useState([])
+  const [weightData, setWeightData] = useState([])
 
   useEffect(() => {
     if (profile?.id) {
@@ -43,6 +45,7 @@ export default function ClientDashboard() {
         weeklyRes,
         prRes,
         logsRes,
+        weightLogsRes,
       ] = await Promise.all([
         supabase
           .from('workout_plans')
@@ -90,6 +93,13 @@ export default function ClientDashboard() {
           .eq('client_id', profile.id)
           .order('completed_at', { ascending: false })
           .limit(5),
+
+        supabase
+          .from('weight_logs')
+          .select('weight_kg, logged_at')
+          .eq('client_id', profile.id)
+          .order('logged_at', { ascending: true })
+          .limit(14),
       ])
 
       if (planRes.data) {
@@ -107,6 +117,7 @@ export default function ClientDashboard() {
       setWeeklyCompleted(weeklyRes.count || 0)
       setPrCount(prRes.count || 0)
       setRecentLogs(logsRes.data || [])
+      setWeightData(weightLogsRes?.data || [])
     } catch (err) {
       setError(err.message)
     } finally {
@@ -231,11 +242,25 @@ export default function ClientDashboard() {
         </div>
       </section>
 
+      {/* Weight Trend */}
+      {weightData.length >= 2 && (
+        <section>
+          <h2 className="mb-3 text-base font-bold text-white">Weight trend</h2>
+          <div className="rounded-2xl bg-[#1a1225] border border-white/5 p-4">
+            <MiniChart data={weightData.map(w => ({ value: Number(w.weight_kg) }))} color="#7c3bed" height={80} />
+            <div className="flex justify-between mt-2 text-[10px] text-slate-500">
+              <span>{new Date(weightData[0].logged_at).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
+              <span>{new Date(weightData[weightData.length-1].logged_at).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Recent Activity */}
       {recentLogs.length > 0 && (
         <section>
           <h2 className="mb-3 text-base font-bold text-white">Recent Activity</h2>
-          <div className="space-y-2">
+          <div className="space-y-2 stagger-list">
             {recentLogs.map((log) => (
               <div
                 key={log.id}

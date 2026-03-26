@@ -9,6 +9,7 @@ import {
 import { format } from 'date-fns'
 import ProgressCharts from '../../components/ProgressCharts'
 import { SkeletonList } from '../../components/SkeletonLoader'
+import { toast } from '../../components/Toast'
 
 export default function PRTracker() {
   const { profile } = useAuth()
@@ -119,6 +120,7 @@ export default function PRTracker() {
 
       setEditingId(null)
       setEditWeight('')
+      toast('PR updated!')
       await fetchData()
     } catch (err) {
       setError(err.message)
