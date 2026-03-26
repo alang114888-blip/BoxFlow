@@ -202,7 +202,7 @@ export default function ProgressCharts({ clientId, isTrainerView = false }) {
     return (
       <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-dark-700 bg-dark-800">
         <div className="text-center">
-          <span className="material-symbols-rounded text-4xl text-dark-500">bar_chart</span>
+          <span className="material-symbols-outlined text-4xl text-dark-500">bar_chart</span>
           <p className="mt-2 text-dark-400">No data yet</p>
           <p className="mt-1 text-xs text-dark-500">
             Data will appear here as it gets recorded.
@@ -364,7 +364,7 @@ export default function ProgressCharts({ clientId, isTrainerView = false }) {
                 : 'text-dark-400 hover:bg-dark-700 hover:text-dark-200'
             }`}
           >
-            <span className="material-symbols-rounded text-[16px]">{tab.icon}</span>
+            <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
             <span className="hidden sm:inline">{tab.label}</span>
           </button>
         ))}

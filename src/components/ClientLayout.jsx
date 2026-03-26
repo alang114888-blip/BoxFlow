@@ -6,18 +6,20 @@ import PullToRefresh from './PullToRefresh'
 
 // Tabs filtered by trainer type
 const allTabs = [
-  { to: '/client', label: 'Home', icon: 'home', end: true, show: ['fitness', 'nutrition', 'both'] },
-  { to: '/client/workouts', label: 'My Workout', icon: 'fitness_center', show: ['fitness', 'both'] },
-  { to: '/client/nutrition', label: 'My Nutrition', icon: 'restaurant', show: ['nutrition', 'both'] },
-  { to: '/client/prs', label: 'PR Board', icon: 'trophy', show: ['fitness', 'both'] },
-  { to: '/client/wod', label: 'WOD', icon: 'local_fire_department', show: ['fitness', 'both'] },
-  { to: '/client/calculator', label: 'Settings', icon: 'settings', show: ['fitness', 'nutrition', 'both'] },
+  { to: '/client', label: 'Home', icon: 'home', end: true, show: ['*'] },
+  { to: '/client/workouts', label: 'My Workout', icon: 'fitness_center', show: ['fitness'] },
+  { to: '/client/nutrition', label: 'My Nutrition', icon: 'restaurant', show: ['nutrition'] },
+  { to: '/client/prs', label: 'PR Board', icon: 'trophy', show: ['fitness'] },
+  { to: '/client/wod', label: 'WOD', icon: 'local_fire_department', show: ['fitness'] },
+  { to: '/client/calculator', label: 'Settings', icon: 'settings', show: ['*'] },
 ]
 
 export default function ClientLayout() {
   const { profile } = useAuth()
   const [trainerType, setTrainerType] = useState(null)
   const [loadingType, setLoadingType] = useState(true)
+  const [hasTrainer, setHasTrainer] = useState(true)
+  const [clientMode, setClientMode] = useState('fitness')
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -27,7 +29,6 @@ export default function ClientLayout() {
 
   useEffect(() => {
     if (!profile?.id) return
-    // Find the client's trainer and get their type
     async function fetchTrainerType() {
       const { data: tc } = await supabase
         .from('trainer_clients')
@@ -45,21 +46,37 @@ export default function ClientLayout() {
           .maybeSingle()
 
         setTrainerType(tp?.trainer_type || 'fitness')
+        setHasTrainer(true)
       } else {
-        // No trainer assigned — show all tabs
-        setTrainerType('both')
+        setHasTrainer(false)
+        setTrainerType(null)
       }
       setLoadingType(false)
     }
     fetchTrainerType()
   }, [profile?.id])
 
-  const tabs = trainerType ? allTabs.filter((t) => t.show.includes(trainerType)) : []
+  const effectiveMode = trainerType === 'both' ? clientMode : trainerType
+  const tabs = trainerType ? allTabs.filter((t) => t.show.includes(effectiveMode) || t.show.includes('*')) : []
 
   if (loadingType) {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-[#0f0a19]">
         <span className="material-symbols-outlined text-primary animate-spin text-4xl">progress_activity</span>
+      </div>
+    )
+  }
+
+  if (!hasTrainer && !isTrainerViewing) {
+    return (
+      <div className="h-[100dvh] flex flex-col items-center justify-center bg-[#0f0a19] text-slate-100 p-6">
+        <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
+          <span className="material-symbols-outlined text-red-400 text-3xl">lock</span>
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">No trainer assigned</h2>
+        <p className="text-slate-400 text-sm text-center max-w-[280px]">
+          You need to be connected to a trainer or nutritionist to access the app. Ask your coach to send you an invite.
+        </p>
       </div>
     )
   }
@@ -89,13 +106,21 @@ export default function ClientLayout() {
               <h1 className="text-base font-bold text-white">Hey {firstName}!</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {trainerType === 'both' && (
+              <div className="flex rounded-lg bg-[#1a1225] border border-primary/10 p-0.5">
+                <button onClick={() => setClientMode('fitness')}
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition ${clientMode === 'fitness' ? 'bg-primary text-white' : 'text-slate-400'}`}>
+                  💪
+                </button>
+                <button onClick={() => setClientMode('nutrition')}
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition ${clientMode === 'nutrition' ? 'bg-primary text-white' : 'text-slate-400'}`}>
+                  🥗
+                </button>
+              </div>
+            )}
             <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a1225] text-slate-400 transition hover:text-white">
-              <span className="material-symbols-outlined text-[20px]">search</span>
-            </button>
-            <button className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a1225] text-slate-400 transition hover:text-white">
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
+              <span className="material-symbols-outlined text-[20px]">settings</span>
             </button>
           </div>
         </div>
@@ -115,7 +140,7 @@ export default function ClientLayout() {
       {/* Content */}
       <PullToRefresh>
         <div key={location.pathname} className="page-enter pb-28">
-          <Outlet context={{ trainerType }} />
+          <Outlet context={{ trainerType, clientMode: effectiveMode }} />
         </div>
       </PullToRefresh>
 
