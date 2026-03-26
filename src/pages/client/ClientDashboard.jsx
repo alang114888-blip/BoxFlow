@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
@@ -12,6 +12,7 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 
 export default function ClientDashboard() {
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const outletContext = useOutletContext() || {}
   const trainerType = outletContext.trainerType
   const [loading, setLoading] = useState(true)
@@ -165,58 +166,54 @@ export default function ClientDashboard() {
         <div className="absolute -bottom-4 -left-4 h-16 w-16 rounded-full bg-white/5" />
       </div>
 
-      {/* Today's Plan */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">Today's Plan</h2>
-          <button className="text-xs font-semibold text-primary">View all</button>
-        </div>
-
-        {todayWorkout ? (
-          <div className="overflow-hidden rounded-2xl bg-[#1a1225] border border-white/5">
-            {/* Image placeholder with gradient */}
-            <div className="relative h-40 bg-gradient-to-br from-[#251b3a] via-[#1a1225] to-primary/20">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[48px] text-primary/30">fitness_center</span>
+      {/* Today's Workout */}
+      {todayWorkout ? (
+        <section>
+          <div className="rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-[#1a1225] to-[#251b3a]">
+            <div className="p-5 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>fitness_center</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">Today's workout</span>
               </div>
-              {/* Badge */}
-              <div className="absolute top-3 left-3">
-                <span className="rounded-full bg-primary/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-light backdrop-blur-sm">
-                  Main Session
-                </span>
+              <h3 className="text-xl font-bold text-white">{todayWorkout.name || "Today's Session"}</h3>
+              <div className="flex items-center gap-4 mt-1.5 text-xs text-slate-400">
+                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">timer</span>~{exerciseCount * 5} min</span>
+                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">exercise</span>{exerciseCount} exercises</span>
               </div>
             </div>
-            <div className="p-4">
-              <h3 className="text-base font-bold text-white">
-                {todayWorkout.name || 'Today\'s Workout'}
-              </h3>
-              <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">timer</span>
-                  {estimatedDuration > 0 ? `${estimatedDuration} min` : '—'}
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">exercise</span>
-                  {exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}
-                </span>
+            <div className="px-5 pb-3">
+              <div className="space-y-2">
+                {(todayWorkout.workout_exercises || []).slice(0, 4).map((ex, i) => (
+                  <div key={ex.id || i} className="flex items-center gap-3 py-1.5">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary">{i + 1}</div>
+                    <div className="flex-1 min-w-0"><p className="text-sm text-white truncate">{ex.exercises?.name || 'Exercise'}</p></div>
+                    <span className="text-[11px] text-slate-500 font-medium">{ex.sets}×{ex.reps}</span>
+                  </div>
+                ))}
+                {(todayWorkout.workout_exercises || []).length > 4 && (
+                  <p className="text-[11px] text-slate-500 pl-10">+{(todayWorkout.workout_exercises || []).length - 4} more exercises</p>
+                )}
               </div>
-              <div className="mt-4 flex items-center gap-2">
-                <button className="flex-1 rounded-xl bg-primary py-3 text-center text-sm font-bold uppercase tracking-wider text-white transition hover:bg-primary-dark">
-                  Start Workout
-                </button>
-                <button className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#251b3a] text-slate-400 transition hover:text-white">
-                  <span className="material-symbols-outlined text-[20px]">bookmark</span>
-                </button>
-              </div>
+            </div>
+            <div className="p-4 pt-2">
+              <button onClick={() => navigate('/client/workouts')}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary to-purple-500 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 btn-press">
+                <span className="material-symbols-outlined text-[20px]">play_arrow</span>Start Workout
+              </button>
             </div>
           </div>
-        ) : (
+        </section>
+      ) : (
+        <section>
           <div className="rounded-2xl bg-[#1a1225] border border-white/5 p-6 text-center">
-            <span className="material-symbols-outlined mb-2 text-[36px] text-slate-600">self_improvement</span>
-            <p className="text-sm text-slate-400">No workout scheduled for today. Rest day!</p>
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-3">
+              <span className="material-symbols-outlined text-emerald-400 text-3xl">self_improvement</span>
+            </div>
+            <p className="text-white font-semibold text-sm">Rest Day</p>
+            <p className="text-slate-500 text-xs mt-1">No workout scheduled. Recovery is part of the process!</p>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* Nutrition Summary */}
       <section>

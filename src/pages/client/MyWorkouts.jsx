@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import Confetti from '../../components/Confetti'
 
 const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -55,6 +56,10 @@ export default function MyWorkouts() {
   const [savingStatus, setSavingStatus] = useState(false)
   const [completionHistory, setCompletionHistory] = useState([])
   const [showCompletionHistory, setShowCompletionHistory] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [exerciseProgress, setExerciseProgress] = useState({})
+
+  const SAVE_KEY = selectedDayId ? `boxflow_workout_${selectedDayId}` : null
 
   const fetchData = useCallback(async () => {
     if (!profile?.id) return
@@ -145,6 +150,19 @@ export default function MyWorkouts() {
     fetchData()
   }, [fetchData])
 
+  useEffect(() => {
+    if (!SAVE_KEY) return
+    try {
+      const saved = sessionStorage.getItem(SAVE_KEY)
+      if (saved) setExerciseProgress(JSON.parse(saved))
+    } catch {}
+  }, [SAVE_KEY])
+
+  useEffect(() => {
+    if (!SAVE_KEY || Object.keys(exerciseProgress).length === 0) return
+    try { sessionStorage.setItem(SAVE_KEY, JSON.stringify(exerciseProgress)) } catch {}
+  }, [exerciseProgress, SAVE_KEY])
+
   // Fetch completion history for a day
   async function fetchCompletionHistory(dayId) {
     const { data } = await supabase
@@ -215,6 +233,11 @@ export default function MyWorkouts() {
 
       if (upsertErr) throw upsertErr
 
+      if (status === 'done') {
+        setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3000)
+        if (SAVE_KEY) sessionStorage.removeItem(SAVE_KEY)
+      }
+
       setStatusNotes('')
       setShowStatusForm(null)
       await fetchData()
@@ -265,6 +288,7 @@ export default function MyWorkouts() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
+      <Confetti active={showConfetti} />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-dark-100">My Workouts</h1>

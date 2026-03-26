@@ -10,6 +10,7 @@ import { format } from 'date-fns'
 import ProgressCharts from '../../components/ProgressCharts'
 import { SkeletonList } from '../../components/SkeletonLoader'
 import { toast } from '../../components/Toast'
+import Confetti from '../../components/Confetti'
 
 export default function PRTracker() {
   const { profile } = useAuth()
@@ -21,6 +22,7 @@ export default function PRTracker() {
   const [editingId, setEditingId] = useState(null)
   const [editWeight, setEditWeight] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!profile?.id) return
@@ -120,7 +122,8 @@ export default function PRTracker() {
 
       setEditingId(null)
       setEditWeight('')
-      toast('PR updated!')
+      toast('New PR! 🎉')
+      setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3000)
       await fetchData()
     } catch (err) {
       setError(err.message)
@@ -145,6 +148,7 @@ export default function PRTracker() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
+      <Confetti active={showConfetti} />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-dark-100">PR Tracker</h1>

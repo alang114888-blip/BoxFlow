@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { SkeletonList } from '../../components/SkeletonLoader'
 import EmptyState from '../../components/EmptyState'
 import { toast } from '../../components/Toast'
+import Confetti from '../../components/Confetti'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 
@@ -13,6 +14,7 @@ export default function Habits() {
   const [logs, setLogs] = useState({})
   const [loading, setLoading] = useState(true)
   const [streak, setStreak] = useState(0)
+  const [showConfetti, setShowConfetti] = useState(false)
 
   useEffect(() => {
     if (!profile) return
@@ -91,6 +93,13 @@ export default function Habits() {
       [habitId]: { ...prev[habitId], completed: newCompleted, habit_id: habitId },
     }))
     if (newCompleted) toast('Habit completed! 🎉')
+
+    const allDone = habits.every(h => h.id === habitId ? newCompleted : logs[h.id]?.completed)
+    if (allDone && newCompleted) {
+      setShowConfetti(true)
+      setTimeout(() => setShowConfetti(false), 3000)
+      toast('All habits complete! 🔥')
+    }
   }
 
   if (loading) {
@@ -101,6 +110,7 @@ export default function Habits() {
 
   return (
     <div className="space-y-4">
+      <Confetti active={showConfetti} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
