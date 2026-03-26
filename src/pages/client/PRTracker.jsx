@@ -7,7 +7,6 @@ import {
   InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
-import ProgressCharts from '../../components/ProgressCharts'
 import { SkeletonList } from '../../components/SkeletonLoader'
 import { toast } from '../../components/Toast'
 import Confetti from '../../components/Confetti'
@@ -70,9 +69,9 @@ export default function PRTracker() {
       // Fetch full PR history from pr_history table
       const { data: histData } = await supabase
         .from('pr_history')
-        .select('id, exercise_id, weight_kg, recorded_at, exercises ( name )')
+        .select('id, exercise_id, new_weight, changed_at')
         .eq('client_id', profile.id)
-        .order('recorded_at', { ascending: false })
+        .order('changed_at', { ascending: false })
         .limit(50)
 
       setPrExercises(exercises)
@@ -112,11 +111,13 @@ export default function PRTracker() {
       if (upsertErr) throw upsertErr
 
       // Also save to PR history (full log, never overwritten)
+      const currentWeight = prs[exerciseId]?.weight_kg || 0
       try {
         await supabase.from('pr_history').insert({
           client_id: profile.id,
           exercise_id: exerciseId,
-          weight_kg: weight,
+          old_weight: currentWeight,
+          new_weight: weight,
         })
       } catch { /* non-critical */ }
 
@@ -156,7 +157,7 @@ export default function PRTracker() {
       </div>
 
       {/* Progress Charts */}
-      {profile?.id && <ProgressCharts clientId={profile.id} />}
+      {/* ProgressCharts temporarily disabled — needs matching DB schema */}
 
       {/* Info Banner */}
       <div className="flex items-start gap-3 rounded-lg border border-primary-500/20 bg-primary-500/5 p-4">
@@ -288,15 +289,15 @@ export default function PRTracker() {
                   const exercise = prExercises.find((e) => e.id === pr.exercise_id)
                   return (
                     <tr
-                      key={`${pr.exercise_id}-${pr.date_achieved}-${i}`}
+                      key={pr.id || `${pr.exercise_id}-${i}`}
                       className="border-b border-dark-700/50 last:border-0"
                     >
                       <td className="px-5 py-3 font-medium text-dark-200">
                         {exercise?.name || 'Unknown Exercise'}
                       </td>
-                      <td className="px-5 py-3 text-primary-400">{pr.weight_kg} kg</td>
+                      <td className="px-5 py-3 text-primary-400">{pr.new_weight} kg</td>
                       <td className="px-5 py-3 text-dark-400">
-                        {format(new Date(pr.date_achieved), 'MMM d, yyyy')}
+                        {pr.changed_at ? format(new Date(pr.changed_at), 'MMM d, yyyy') : '—'}
                       </td>
                     </tr>
                   )
