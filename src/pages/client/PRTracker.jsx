@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import ProgressCharts from '../../components/ProgressCharts'
+import { SkeletonList } from '../../components/SkeletonLoader'
 
 export default function PRTracker() {
   const { profile } = useAuth()
@@ -127,11 +128,7 @@ export default function PRTracker() {
   }
 
   if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-dark-600 border-t-primary-500" />
-      </div>
-    )
+    return <SkeletonList count={6} />
   }
 
   if (error) {

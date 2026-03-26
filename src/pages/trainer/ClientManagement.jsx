@@ -11,6 +11,7 @@ import {
   UserPlusIcon,
   KeyIcon,
 } from '@heroicons/react/24/outline'
+import { SkeletonTable } from '../../components/SkeletonLoader'
 
 export default function ClientManagement() {
   const { profile } = useAuth()
@@ -365,11 +366,7 @@ export default function ClientManagement() {
   })
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-dark-600 border-t-primary-500" />
-      </div>
-    )
+    return <SkeletonTable rows={5} />
   }
 
   return (

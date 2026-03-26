@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import PullToRefresh from './PullToRefresh'
@@ -20,6 +20,7 @@ export default function ClientLayout() {
   const [loadingType, setLoadingType] = useState(true)
 
   const navigate = useNavigate()
+  const location = useLocation()
   const firstName = profile?.full_name?.split(' ')[0] || 'Athlete'
   const avatarUrl = profile?.avatar_url
   const isTrainerViewing = profile?.role === 'trainer'
@@ -113,7 +114,7 @@ export default function ClientLayout() {
 
       {/* Content */}
       <PullToRefresh>
-        <div className="pb-28">
+        <div key={location.pathname} className="page-enter pb-28">
           <Outlet context={{ trainerType }} />
         </div>
       </PullToRefresh>

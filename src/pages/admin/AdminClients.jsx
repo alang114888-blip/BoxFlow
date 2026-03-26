@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { SkeletonTable } from '../../components/SkeletonLoader'
 
 export default function AdminClients() {
   const { profile } = useAuth()
@@ -273,11 +274,7 @@ export default function AdminClients() {
       {/* Clients Table */}
       <div className="glass-card rounded-2xl overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <span className="material-symbols-outlined text-primary animate-spin text-3xl">
-              progress_activity
-            </span>
-          </div>
+          <SkeletonTable rows={5} />
         ) : filteredClients.length === 0 ? (
           <div className="text-center py-16">
             <span className="material-symbols-outlined text-slate-600 text-5xl mb-3">

@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import NutritionistHome from './NutritionistHome'
+import { SkeletonDashboard } from '../../components/SkeletonLoader'
 
 function getMonday(d) {
   const date = new Date(d)
@@ -154,11 +155,7 @@ export default function TrainerDashboard() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-dark-600 border-t-primary" />
-      </div>
-    )
+    return <SkeletonDashboard />
   }
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Coach'

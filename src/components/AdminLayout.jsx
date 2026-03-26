@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useState } from 'react'
 
@@ -11,6 +11,7 @@ const navItems = [
 export default function AdminLayout() {
   const { profile, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchQuery, setSearchQuery] = useState('')
 
   const initials = (profile?.full_name || 'A')
@@ -113,7 +114,9 @@ export default function AdminLayout() {
 
         {/* Scrollable Content */}
         <main className="flex-1 overflow-y-auto p-8">
-          <Outlet />
+          <div key={location.pathname} className="page-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

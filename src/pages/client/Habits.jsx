@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
+import { SkeletonList } from '../../components/SkeletonLoader'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 
@@ -90,7 +91,7 @@ export default function Habits() {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center py-12"><span className="material-symbols-outlined text-primary animate-spin text-3xl">progress_activity</span></div>
+    return <SkeletonList count={3} lines={1} />
   }
 
   const completedCount = Object.values(logs).filter(l => l.completed).length

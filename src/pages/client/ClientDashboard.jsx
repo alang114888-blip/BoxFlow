@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import NutritionHome from './NutritionHome'
+import { SkeletonDashboard } from '../../components/SkeletonLoader'
 import Habits from './Habits'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -114,11 +115,7 @@ export default function ClientDashboard() {
   }
 
   if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#251b3a] border-t-primary" />
-      </div>
-    )
+    return <SkeletonDashboard />
   }
 
   if (error) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, SITE_URL } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { SkeletonTable } from '../../components/SkeletonLoader'
 
 export default function AdminTrainers() {
   const { profile } = useAuth()
@@ -323,9 +324,7 @@ export default function AdminTrainers() {
       {/* Trainers Table */}
       <div className="glass-card rounded-2xl overflow-hidden">
         {loadingTrainers ? (
-          <div className="flex items-center justify-center py-16">
-            <span className="material-symbols-outlined text-primary animate-spin text-3xl">progress_activity</span>
-          </div>
+          <SkeletonTable rows={5} />
         ) : filteredTrainers.length === 0 ? (
           <div className="text-center py-16">
             <span className="material-symbols-outlined text-slate-600 text-5xl mb-3">group_off</span>

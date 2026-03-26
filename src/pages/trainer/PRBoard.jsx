@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { SkeletonTable } from '../../components/SkeletonLoader'
 
 export default function PRBoard() {
   const { profile } = useAuth()
@@ -185,11 +186,7 @@ export default function PRBoard() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="material-symbols-outlined text-primary animate-spin text-3xl">progress_activity</span>
-      </div>
-    )
+    return <SkeletonTable rows={8} cols={3} />
   }
 
   return (

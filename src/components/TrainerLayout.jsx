@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import PullToRefresh from './PullToRefresh'
@@ -20,6 +20,7 @@ const allTabs = [
 export default function TrainerLayout() {
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   // Use trainer_type from AuthContext profile if available (instant load)
   const [trainerType, setTrainerType] = useState(() => profile?.trainer_type || null)
   const [loadingType, setLoadingType] = useState(!profile?.trainer_type)
@@ -115,7 +116,7 @@ export default function TrainerLayout() {
 
       {/* Content */}
       <PullToRefresh>
-        <div className="pb-28">
+        <div key={location.pathname} className="page-enter pb-28">
           <div className="mx-auto max-w-2xl px-4 py-2">
             <Outlet context={{ trainerType, activeMode: effectiveMode }} />
           </div>
