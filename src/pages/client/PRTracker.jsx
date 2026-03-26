@@ -258,16 +258,35 @@ export default function PRTracker() {
                 </button>
 
                 {isEditing && (
-                  <div className="flex items-center gap-2 px-3 py-2.5 bg-primary/5 border border-primary/20 border-t-0 rounded-b-xl">
-                    <input type="number" step="0.5" min="0" value={editWeight}
-                      onChange={e => setEditWeight(e.target.value)} placeholder="Weight (kg)" autoFocus
-                      className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary" />
-                    <button onClick={() => handleSave(ex.id)} disabled={saving || !editWeight}
-                      className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 btn-press">
-                      {saving ? '...' : 'Save'}
-                    </button>
-                    <button onClick={() => { setEditingId(null); setEditWeight('') }}
-                      className="px-3 py-2 rounded-lg bg-white/5 text-slate-400 text-sm btn-press">Cancel</button>
+                  <div className="px-3 py-3 bg-primary/5 border border-primary/20 border-t-0 rounded-b-xl space-y-3">
+                    {/* Last 3 history entries */}
+                    {hist.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Recent history</p>
+                        {hist.slice(-3).reverse().map((h, i) => (
+                          <div key={i} className="flex items-center justify-between py-1">
+                            <span className="text-[11px] text-slate-400">
+                              {new Date(h.date).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                            <span className={`text-[12px] font-medium ${i === 0 ? 'text-primary' : 'text-slate-400'}`}>
+                              {h.weight}kg
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Input row */}
+                    <div className="flex items-center gap-2">
+                      <input type="number" step="0.5" min="0" value={editWeight}
+                        onChange={e => setEditWeight(e.target.value)} placeholder="New PR (kg)" autoFocus
+                        className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary" />
+                      <button onClick={() => handleSave(ex.id)} disabled={saving || !editWeight}
+                        className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 btn-press">
+                        {saving ? '...' : 'Save'}
+                      </button>
+                      <button onClick={() => { setEditingId(null); setEditWeight('') }}
+                        className="px-3 py-2 rounded-lg bg-white/5 text-slate-400 text-sm btn-press">Cancel</button>
+                    </div>
                   </div>
                 )}
               </div>
