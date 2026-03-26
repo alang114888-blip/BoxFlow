@@ -49,7 +49,7 @@ export default function NutritionHome() {
           .from('trainer_clients')
           .select('personal_notes, motivation_message, next_appointment, water_goal')
           .eq('client_id', profile.id)
-          .single(),
+          .maybeSingle(),
         supabase
           .from('daily_checkins')
           .select('mood_emoji')

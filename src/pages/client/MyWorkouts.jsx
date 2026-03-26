@@ -79,7 +79,7 @@ export default function MyWorkouts() {
           .eq('client_id', profile.id)
           .eq('is_active', true)
           .limit(1)
-          .single(),
+          .maybeSingle(),
 
         supabase
           .from('client_prs')

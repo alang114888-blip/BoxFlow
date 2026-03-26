@@ -37,7 +37,7 @@ export default function ClientHistory() {
           .from('profiles')
           .select('full_name, email')
           .eq('id', clientId)
-          .single(),
+          .maybeSingle(),
         supabase
           .from('weekly_checkins')
           .select('*')
