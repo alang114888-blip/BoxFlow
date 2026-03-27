@@ -150,10 +150,21 @@ export function AuthProvider({ children }) {
     if (lockCheck?.locked) {
       throw new Error('Account locked — contact your trainer or admin to unlock.')
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: SITE_URL + '/reset-password',
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${anonKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
     })
-    if (error) throw error
+
+    const result = await res.json()
+    if (!res.ok) throw new Error(result.error || 'Failed to send reset email')
   }
 
   async function signOut() {

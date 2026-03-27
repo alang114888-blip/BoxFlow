@@ -33,6 +33,12 @@ export default function TrainerDashboard() {
   })
   const [expandedAlert, setExpandedAlert] = useState(null)
   const [clientCompletions, setClientCompletions] = useState({})
+  const [dismissedAlerts, setDismissedAlerts] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('boxflow_dismissed_alerts')
+      return saved ? JSON.parse(saved) : {}
+    } catch { return {} }
+  })
 
   useEffect(() => {
     if (!profile || activeMode === 'nutrition') return
@@ -109,9 +115,10 @@ export default function TrainerDashboard() {
           .gte('completed_at', mondayISO),
         supabase
           .from('client_prs')
-          .select('client_id')
+          .select('client_id, weight_kg, updated_at, exercises ( name )')
           .in('client_id', clientIds)
-          .gte('updated_at', monday.toISOString()),
+          .gte('updated_at', monday.toISOString())
+          .order('updated_at', { ascending: false }),
       ])
 
       // Process check-ins
@@ -129,8 +136,17 @@ export default function TrainerDashboard() {
       const skippedClients = clientsList.filter((c) => (skippedCounts[c.id] || 0) >= 2)
 
       // Process PRs
-      const prIds = new Set((prsRes.data || []).map((p) => p.client_id))
-      const prClients = clientsList.filter((c) => prIds.has(c.id))
+      const prDetails = {}
+      ;(prsRes.data || []).forEach(p => {
+        if (!prDetails[p.client_id]) prDetails[p.client_id] = []
+        prDetails[p.client_id].push({
+          exercise: p.exercises?.name || 'Unknown',
+          weight: p.weight_kg,
+        })
+      })
+      const prClients = clientsList
+        .filter(c => prDetails[c.id])
+        .map(c => ({ ...c, prInfo: prDetails[c.id] }))
 
       setAlerts({ skippedClients, noCheckinClients, checkedInClients, prClients })
 
@@ -227,11 +243,17 @@ export default function TrainerDashboard() {
     return dots
   }
 
+  function dismissAlert(key) {
+    const updated = { ...dismissedAlerts, [key]: Date.now() }
+    setDismissedAlerts(updated)
+    sessionStorage.setItem('boxflow_dismissed_alerts', JSON.stringify(updated))
+  }
+
   const dotColors = {
     done: 'bg-green-400',
     skipped: 'bg-red-400',
     pending: 'bg-yellow-400',
-    none: 'bg-dark-600',
+    none: 'bg-slate-800',
   }
 
   return (
@@ -253,7 +275,7 @@ export default function TrainerDashboard() {
       <div className="mb-5 grid grid-cols-3 gap-3">
         {statCards.map((s) => (
           <div key={s.label} className="rounded-2xl bg-[#1a1225] border border-primary/10 p-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-dark-400">{s.label}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{s.label}</p>
             <p className="mt-1 text-2xl font-bold text-primary">{typeof s.value === 'number' ? <AnimatedNumber value={s.value} /> : s.value}</p>
           </div>
         ))}
@@ -262,9 +284,9 @@ export default function TrainerDashboard() {
       {/* Smart Alerts */}
       {clients.length > 0 && (
         <div className="mb-5">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-dark-400">Smart Alerts</h3>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Smart Alerts</h3>
           <div className="space-y-2">
-            {alertConfigs.filter((a) => a.show).map((alert) => (
+            {alertConfigs.filter((a) => a.show && !dismissedAlerts[a.key]).map((alert) => (
               <div key={alert.key} className={`rounded-2xl border ${alert.border} ${alert.bg} overflow-hidden`}>
                 <button
                   onClick={() => setExpandedAlert(expandedAlert === alert.key ? null : alert.key)}
@@ -272,9 +294,11 @@ export default function TrainerDashboard() {
                 >
                   <span className={`material-symbols-outlined text-xl ${alert.color}`}>{alert.icon}</span>
                   <span className={`flex-1 text-sm font-medium ${alert.color}`}>{alert.label}</span>
-                  <span className={`material-symbols-outlined text-lg text-dark-400 transition-transform ${expandedAlert === alert.key ? 'rotate-180' : ''}`}>
+                  <span className={`material-symbols-outlined text-lg text-slate-400 transition-transform ${expandedAlert === alert.key ? 'rotate-180' : ''}`}>
                     expand_more
                   </span>
+                  <span className="material-symbols-outlined text-lg text-slate-600 hover:text-white ml-1"
+                    onClick={(e) => { e.stopPropagation(); dismissAlert(alert.key) }}>close</span>
                 </button>
                 {expandedAlert === alert.key && (
                   <div className="border-t border-white/5 px-3 pb-3">
@@ -283,7 +307,17 @@ export default function TrainerDashboard() {
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white">
                           {client.full_name?.charAt(0)?.toUpperCase() || '?'}
                         </div>
-                        <span className="text-xs text-dark-200">{client.full_name}</span>
+                        <span className="text-xs text-slate-300 flex-1">{client.full_name}</span>
+                        {alert.key === 'prs' && client.prInfo && (
+                          <div className="flex flex-col items-end">
+                            {client.prInfo.slice(0, 2).map((pr, i) => (
+                              <span key={i} className="text-[10px] text-amber-400">{pr.exercise}: {pr.weight}kg</span>
+                            ))}
+                            {client.prInfo.length > 2 && (
+                              <span className="text-[10px] text-slate-500">+{client.prInfo.length - 2} more</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -292,8 +326,8 @@ export default function TrainerDashboard() {
             ))}
             {alertConfigs.every((a) => !a.show) && (
               <div className="rounded-2xl border border-primary/10 bg-[#1a1225] p-4 text-center">
-                <span className="material-symbols-outlined mb-1 text-2xl text-dark-500">info</span>
-                <p className="text-xs text-dark-400">No alerts this week</p>
+                <span className="material-symbols-outlined mb-1 text-2xl text-slate-500">info</span>
+                <p className="text-xs text-slate-400">No alerts this week</p>
               </div>
             )}
           </div>
@@ -301,11 +335,11 @@ export default function TrainerDashboard() {
       )}
 
       {/* Client Cards */}
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-dark-400">Your Clients</h3>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Your Clients</h3>
       {clients.length === 0 ? (
         <div className="rounded-2xl border border-primary/10 bg-[#1a1225] p-6 text-center">
-          <span className="material-symbols-outlined mb-2 text-3xl text-dark-500">group_off</span>
-          <p className="text-sm text-dark-400">No clients yet</p>
+          <span className="material-symbols-outlined mb-2 text-3xl text-slate-500">group_off</span>
+          <p className="text-sm text-slate-400">No clients yet</p>
           <button
             onClick={() => navigate('/trainer/clients')}
             className="mt-3 rounded-xl bg-primary/20 px-4 py-2 text-xs font-semibold text-primary"
@@ -354,7 +388,7 @@ export default function TrainerDashboard() {
                   </div>
                 </div>
 
-                <span className="material-symbols-outlined text-lg text-dark-500">chevron_right</span>
+                <span className="material-symbols-outlined text-lg text-slate-500">chevron_right</span>
               </button>
             )
           })}
