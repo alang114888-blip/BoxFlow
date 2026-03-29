@@ -97,11 +97,18 @@ export default function AdminLayout() {
               className="w-80 pl-10 pr-4 py-2 rounded-xl bg-white/5 border border-glass-border text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary/40 transition-colors"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <button className="relative p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
-              <span className="material-symbols-outlined text-[22px]">notifications</span>
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full"></span>
-            </button>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex rounded-lg bg-white/5 border border-white/10 p-0.5 flex-shrink-0">
+              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold bg-primary text-white transition">
+                <span className="material-symbols-outlined text-[14px]">shield</span>
+                Admin
+              </button>
+              <button onClick={() => navigate('/client')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/10 transition">
+                <span className="material-symbols-outlined text-[14px]">fitness_center</span>
+                Client
+              </button>
+            </div>
             <button
               onClick={() => navigate('/admin/trainers')}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/25 transition-all"

@@ -133,20 +133,28 @@ export default function ClientLayout() {
       </header>
 
       {profile?.role === 'super_admin' && (
-        <div className="px-5 pb-2">
+        <div className="flex rounded-lg bg-white/5 border border-white/10 p-0.5 mx-5 mt-2 mb-1">
           <button onClick={() => navigate('/admin')}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 py-2 text-xs font-semibold text-amber-400 hover:bg-amber-500/20 transition btn-press">
-            <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
-            Back to Admin
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold text-slate-400 hover:text-white transition">
+            <span className="material-symbols-outlined text-[14px]">shield</span>
+            Admin
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold bg-emerald-500 text-white transition">
+            <span className="material-symbols-outlined text-[14px]">fitness_center</span>
+            Client
           </button>
         </div>
       )}
       {profile?.role === 'trainer' && (
-        <div className="px-5 pb-2">
+        <div className="flex rounded-lg bg-white/5 border border-white/10 p-0.5 mx-5 mt-2 mb-1">
           <button onClick={() => navigate('/trainer')}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/20 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition btn-press">
-            <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-            Back to Trainer Dashboard
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold text-slate-400 hover:text-white transition">
+            <span className="material-symbols-outlined text-[14px]">exercise</span>
+            Trainer
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold bg-emerald-500 text-white transition">
+            <span className="material-symbols-outlined text-[14px]">fitness_center</span>
+            Client
           </button>
         </div>
       )}
