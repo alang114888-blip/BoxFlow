@@ -106,17 +106,19 @@ export default function AdminLayout() {
 
           {/* Right: toggle + add button */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex rounded-lg bg-white/5 border border-white/10 p-0.5 flex-shrink-0">
-              <button className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-primary text-white transition">
-                <span className="material-symbols-outlined text-[14px]">shield</span>
-                <span className="hidden sm:inline">Admin</span>
-              </button>
-              <button onClick={() => navigate('/client')}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/10 transition">
-                <span className="material-symbols-outlined text-[14px]">fitness_center</span>
-                <span className="hidden sm:inline">Client</span>
-              </button>
-            </div>
+            {profile?.role === 'super_admin' && (
+              <div className="flex rounded-lg bg-white/5 border border-white/10 p-0.5 flex-shrink-0">
+                <button className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-primary text-white transition">
+                  <span className="material-symbols-outlined text-[14px]">shield</span>
+                  <span className="hidden sm:inline">Admin</span>
+                </button>
+                <button onClick={() => navigate('/client')}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/10 transition">
+                  <span className="material-symbols-outlined text-[14px]">fitness_center</span>
+                  <span className="hidden sm:inline">Client</span>
+                </button>
+              </div>
+            )}
             <button onClick={() => navigate('/admin/trainers')}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-white text-xs sm:text-sm font-medium hover:shadow-lg hover:shadow-primary/25 transition-all flex-shrink-0">
               <span className="material-symbols-outlined text-[18px]">person_add</span>
