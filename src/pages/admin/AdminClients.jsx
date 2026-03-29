@@ -46,7 +46,7 @@ export default function AdminClients() {
       const { data: clientData, error: clientError } = await supabase
         .from('profiles')
         .select('id, full_name, email, role, locked_at, failed_attempts, phone, is_onboarded, created_at')
-        .eq('role', 'client')
+        .in('role', ['client', 'super_admin'])
         .order('full_name')
 
       if (clientError) throw clientError
