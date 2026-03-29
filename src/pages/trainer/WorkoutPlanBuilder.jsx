@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { toast } from '../../components/Toast'
 import {
   PlusIcon,
   TrashIcon,
@@ -57,6 +58,8 @@ export default function WorkoutPlanBuilder() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
   const [publishMetcon, setPublishMetcon] = useState(false)
+  const [planToDelete, setPlanToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Client PRs cache
   const [clientPrs, setClientPrs] = useState({})
@@ -485,6 +488,22 @@ export default function WorkoutPlanBuilder() {
     }
   }
 
+  async function handleDeletePlan() {
+    if (!planToDelete) return
+    try {
+      setDeleting(true)
+      const { error } = await supabase.from('workout_plans').delete().eq('id', planToDelete.id).eq('trainer_id', profile.id)
+      if (error) throw error
+      setPlanToDelete(null)
+      fetchPlans()
+      toast('Plan deleted')
+    } catch (err) {
+      setSaveError(err.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   // Handle client change: load PRs
   async function handleClientChange(clientId) {
     setSelectedClient(clientId)
@@ -556,12 +575,18 @@ export default function WorkoutPlanBuilder() {
                     <p className="mt-1 text-xs text-dark-500">{plan.description}</p>
                   )}
                 </div>
-                <button
-                  onClick={() => openEdit(plan)}
-                  className="rounded-lg border border-dark-600 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-dark-200"
-                >
-                  <PencilSquareIcon className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => openEdit(plan)}
+                    className="rounded-lg border border-dark-600 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-dark-200"
+                  >
+                    <PencilSquareIcon className="h-4 w-4" />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setPlanToDelete(plan) }}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/5 transition" title="Delete plan">
+                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -968,6 +993,29 @@ export default function WorkoutPlanBuilder() {
           <CheckCircleIcon className="h-4 w-4" />{saving ? 'Saving...' : 'Save Plan'}
         </button>
       </div>
+
+      {planToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-[#1a1225] border border-white/10 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                <span className="material-symbols-outlined text-red-400 text-xl">warning</span>
+              </div>
+              <h3 className="text-lg font-semibold text-white">Delete Plan</h3>
+            </div>
+            <p className="text-sm text-slate-300 mb-1">Delete <span className="font-medium text-white">{planToDelete.name}</span>?</p>
+            <p className="text-xs text-red-400/80 mb-6">All workout days and exercises will be removed. This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setPlanToDelete(null)} disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 text-slate-400 text-sm btn-press disabled:opacity-50">Cancel</button>
+              <button onClick={handleDeletePlan} disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-medium btn-press disabled:opacity-50">
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

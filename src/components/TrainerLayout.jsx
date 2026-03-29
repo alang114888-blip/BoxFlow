@@ -94,16 +94,29 @@ export default function TrainerLayout() {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {/* Mode toggle — compact, only for 'both' trainers */}
-            {trainerType === 'both' && (
+            {trainerType === 'both' ? (
               <div className="flex rounded-lg bg-[#1a1225] border border-primary/10 p-0.5">
                 <button onClick={() => toggleMode('fitness')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${activeMode === 'fitness' ? 'bg-primary text-white' : 'text-slate-500'}`}>
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${activeMode === 'fitness' ? 'bg-primary text-white' : 'text-slate-400'}`}>
                   💪
                 </button>
                 <button onClick={() => toggleMode('nutrition')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${activeMode === 'nutrition' ? 'bg-primary text-white' : 'text-slate-500'}`}>
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${activeMode === 'nutrition' ? 'bg-primary text-white' : 'text-slate-400'}`}>
                   🥗
+                </button>
+                <button onClick={() => navigate('/client')}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/10 transition">
+                  <span className="material-symbols-outlined text-[14px]">fitness_center</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex rounded-lg bg-[#1a1225] border border-primary/10 p-0.5">
+                <button className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-primary text-white">
+                  {trainerType === 'fitness' ? '💪' : '🥗'}
+                </button>
+                <button onClick={() => navigate('/client')}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/10 transition">
+                  <span className="material-symbols-outlined text-[14px]">fitness_center</span>
                 </button>
               </div>
             )}

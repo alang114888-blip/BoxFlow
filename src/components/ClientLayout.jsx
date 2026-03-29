@@ -30,6 +30,12 @@ export default function ClientLayout() {
   useEffect(() => {
     if (!profile?.id) return
     async function fetchTrainerType() {
+      if (profile?.role === 'super_admin' || profile?.role === 'trainer') {
+        setTrainerType('both')
+        setHasTrainer(true)
+        setLoadingType(false)
+        return
+      }
       const { data: tc } = await supabase
         .from('trainer_clients')
         .select('trainer_id')
@@ -126,11 +132,19 @@ export default function ClientLayout() {
         </div>
       </header>
 
-      {/* Back to Trainer button — shown when trainer views as client */}
-      {isTrainerViewing && (
+      {profile?.role === 'super_admin' && (
+        <div className="px-5 pb-2">
+          <button onClick={() => navigate('/admin')}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 py-2 text-xs font-semibold text-amber-400 hover:bg-amber-500/20 transition btn-press">
+            <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+            Back to Admin
+          </button>
+        </div>
+      )}
+      {profile?.role === 'trainer' && (
         <div className="px-5 pb-2">
           <button onClick={() => navigate('/trainer')}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/20 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition">
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/20 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition btn-press">
             <span className="material-symbols-outlined text-[16px]">arrow_back</span>
             Back to Trainer Dashboard
           </button>

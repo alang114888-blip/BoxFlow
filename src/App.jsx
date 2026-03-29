@@ -100,7 +100,7 @@ export default function App() {
         </Route>
 
         {/* Client Routes */}
-        <Route element={<ProtectedRoute allowedRoles={['client']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['client', 'super_admin', 'trainer']} />}>
           <Route element={<ClientLayout />}>
             <Route path="/client" element={<ClientDashboard />} />
             <Route path="/client/workouts" element={<MyWorkouts />} />
